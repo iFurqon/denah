@@ -1,0 +1,2992 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Temukan Harta Karun! - Petualangan Kompas & Peta</title>
+    <style>
+        /* ==========================================================================
+           1. KONFIGURASI FONT OFFLINE (TIDAK BERGANTUNG JARINGAN / INTERNET)
+           ==========================================================================
+           Jika Anda ingin menambahkan file font lokal (.woff2 / .ttf) di VS Code,
+           simpan di folder ./assets/fonts/ dan aktifkan blok @font-face di bawah ini.
+        */
+        /*
+        @font-face {
+            font-family: 'GameFontOffline';
+            src: url('./assets/fonts/Fredoka-Bold.woff2') format('woff2'),
+                 url('./assets/fonts/Fredoka-Bold.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+        */
+
+        :root {
+            --font-display: 'GameFontOffline', 'Trebuchet MS', 'Segoe UI Rounded', 'Comic Sans MS', 'Arial Rounded MT Bold', system-ui, -apple-system, sans-serif;
+            --font-body: 'Segoe UI', 'Calibri', 'Candara', 'Optima', Arial, sans-serif;
+            
+            /* Palet Warna Tema Petualangan Pulau Harta Karun */
+            --bg-ocean-deep: #0b4f6c;
+            --bg-ocean-mid: #14749b;
+            --bg-ocean-light: #2ec4b6;
+            --island-sand: #f4e2b8;
+            --island-sand-dark: #dfbe7f;
+            --island-grass: #95d576;
+            --wood-dark: #4a2c11;
+            --wood-mid: #7c4a1e;
+            --wood-light: #b87333;
+            --parchment-bg: #fff8e7;
+            --parchment-border: #d4a359;
+            --gold-bright: #ffd13b;
+            --gold-dark: #d99300;
+            --accent-red: #e63946;
+            --accent-green: #2a9d8f;
+            --accent-blue: #1d6fa5;
+            --text-dark: #2d1b0e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #0f3146 0%, #051622 100%);
+            font-family: var(--font-body);
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ==========================================================================
+           2. SISTEM KANVAS RASIO FIX 16:9 (RESOLUSI INTERNAL 1920 x 1080)
+           ========================================================================== */
+        #viewport-wrapper {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #game-stage {
+            position: relative;
+            width: 1920px;
+            height: 1080px;
+            background-image: url('./assets/latar.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 18px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), inset 0 0 0 6px var(--wood-mid);
+            overflow: hidden;
+            transform-origin: center center;
+            flex-shrink: 0;
+        }
+
+        /* Dekorasi Gelombang Laut Beranimasi */
+        .ocean-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08) 0%, transparent 30%),
+                radial-gradient(circle at 80% 75%, rgba(46,196,182,0.12) 0%, transparent 35%),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 20px, transparent 20px, transparent 40px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ==========================================================================
+           3. KOMPONEN TOMBOL & UI BERGAYA KAYU / EMAS (100% AKTIF)
+           ========================================================================== */
+        .btn-game {
+            font-family: var(--font-display);
+            font-weight: 800;
+            border: 3px solid var(--wood-dark);
+            border-radius: 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, box-shadow 0.12s ease;
+            text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+            position: relative;
+            outline: none;
+        }
+
+        .btn-game:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.02);
+            filter: brightness(1.08);
+        }
+
+        .btn-game:active:not(:disabled) {
+            transform: translateY(2px) scale(0.98);
+        }
+
+        .btn-game:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(0.4);
+        }
+
+        .btn-gold {
+            background: linear-gradient(180deg, #ffe066 0%, #f59f00 100%);
+            color: #3b1f06;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+            box-shadow: 0 6px 0 #9c5700, 0 8px 16px rgba(0,0,0,0.35);
+        }
+        .btn-gold:active:not(:disabled) { box-shadow: 0 2px 0 #9c5700; }
+
+        .btn-green {
+            background: linear-gradient(180deg, #52b788 0%, #2d6a4f 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 0 #1b4332, 0 8px 16px rgba(0,0,0,0.35);
+        }
+        .btn-green:active:not(:disabled) { box-shadow: 0 2px 0 #1b4332; }
+
+        .btn-blue {
+            background: linear-gradient(180deg, #48cae4 0%, #0077b6 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 0 #023e8a, 0 8px 16px rgba(0,0,0,0.35);
+        }
+        .btn-blue:active:not(:disabled) { box-shadow: 0 2px 0 #023e8a; }
+
+        .btn-image-small {
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            transform: scale(0.333333) !important;
+            transform-origin: center;
+            width: auto;
+            height: auto;
+        }
+
+        .btn-image-small:hover:not(:disabled) {
+            transform: none !important;
+            filter: brightness(1.12);
+        }
+
+        .btn-image-small img {
+            display: block;
+            width: auto;
+            max-width: 100%;
+            height: auto;
+            pointer-events: none;
+        }
+
+        .btn-wood {
+            background: linear-gradient(180deg, #a4642e 0%, #6b3d17 100%);
+            color: #fff6e0;
+            box-shadow: 0 6px 0 #3d210a, 0 8px 16px rgba(0,0,0,0.35);
+        }
+        .btn-wood:active:not(:disabled) { box-shadow: 0 2px 0 #3d210a; }
+
+        .btn-image-only {
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            width: auto;
+            height: auto;
+            transform: scale(0.6667);
+            transform-origin: center;
+        }
+
+        .btn-image-half {
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            transform: scale(0.5) !important;
+            transform-origin: center;
+        }
+
+        .btn-image-half:hover:not(:disabled) {
+            transform: none !important;
+            filter: brightness(1.12);
+        }
+
+        .btn-move-up-100 {
+            position: relative;
+            top: -100px;
+            margin-top: 0;
+        }
+
+        .btn-image-half img {
+            display: block;
+            width: auto;
+            max-width: 100%;
+            height: auto;
+            pointer-events: none;
+        }
+
+        .btn-image-only:hover:not(:disabled) {
+            transform: translateY(-2px) scale(0.6667);
+        }
+
+        .btn-image-only img {
+            display: block;
+            width: auto;
+            max-width: 100%;
+            height: auto;
+            pointer-events: none;
+        }
+
+        .btn-red {
+            background: linear-gradient(180deg, #ff6b6b 0%, #c92a2a 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 0 #7f1d1d, 0 8px 16px rgba(0,0,0,0.35);
+        }
+        .btn-red:active:not(:disabled) { box-shadow: 0 2px 0 #7f1d1d; }
+
+        .icon-btn {
+            width: 58px;
+            height: 58px;
+            border-radius: 14px;
+            font-size: 26px;
+            padding: 0;
+        }
+
+        /* ==========================================================================
+           4. LAYAR MENU UTAMA (START SCREEN)
+           ========================================================================== */
+        .screen {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        #start-screen {
+            background-image: linear-gradient(rgba(8, 32, 38, 0.18), rgba(8, 32, 38, 0.18)), url('./assets/latar.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            align-items: center;
+            justify-content: space-between;
+            padding: 36px 64px;
+        }
+
+        .top-utility-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .badge-edition {
+            background: rgba(11, 43, 60, 0.85);
+            color: #ffe066;
+            border: 2px solid #f59f00;
+            padding: 10px 22px;
+            border-radius: 999px;
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+        }
+
+        .hero-card {
+            position: relative;
+            width: 1460px;
+            height: 820px;
+            background-image: url('./assets/cover.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: 10px solid var(--wood-mid);
+            border-radius: 36px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.55), inset 0 0 0 6px var(--parchment-border);
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            overflow: visible;
+        }
+
+        .hero-left {
+            padding: 46px 52px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: transparent;
+            border-right: 0;
+            overflow: visible;
+        }
+
+        .game-title-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e9f5db;
+            color: #2d6a4f;
+            border: 2px solid #74c69d;
+            padding: 6px 16px;
+            border-radius: 99px;
+            font-weight: 800;
+            font-size: 18px;
+            width: fit-content;
+            margin-bottom: 12px;
+        }
+
+        .main-title {
+            font-family: var(--font-display);
+            font-size: 62px;
+            line-height: 1.08;
+            color: var(--wood-dark);
+            text-shadow: 0 4px 0 #f3c677;
+            margin-bottom: 14px;
+        }
+
+        .main-subtitle {
+            font-size: 22px;
+            line-height: 1.5;
+            color: #5c4028;
+            margin-bottom: 24px;
+        }
+
+        .level-selector-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--wood-dark);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .level-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .level-card {
+            background: transparent;
+            border: none;
+            border-radius: 18px;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            text-align: left;
+            width: 100%;
+            aspect-ratio: 3 / 1;
+            min-height: 110px;
+            box-shadow: none;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .level-card:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.02);
+        }
+
+        .level-card.selected {
+            box-shadow: 0 0 0 4px #f4e2b8, 0 0 18px rgba(244, 226, 184, 0.7);
+            border: 2px solid #f4e2b8;
+        }
+
+        .level-card-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .level-card-info h4 {
+            font-family: var(--font-display);
+            font-size: 20px;
+            color: var(--wood-dark);
+            margin-bottom: 2px;
+        }
+
+        .level-card-info p {
+            font-size: 15px;
+            color: #6b4c30;
+            font-weight: 600;
+        }
+
+        .start-actions-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin: 8px 0 18px;
+        }
+
+        .btn-play-main {
+            flex: 0 1 420px;
+            height: 74px;
+            border-radius: 20px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .btn-play-main img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .hero-right {
+            position: relative;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 36px;
+            overflow: hidden;
+        }
+
+        .hero-mascot-stage {
+            position: relative;
+            width: 480px;
+            height: 440px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: floatSlow 3.4s ease-in-out infinite;
+        }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+        }
+
+        .hero-quick-buttons {
+            display: flex;
+            gap: 14px;
+            margin-top: 18px;
+            z-index: 2;
+        }
+
+        .hero-actions-row {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 18px;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .btn-cara-juga,
+        .btn-panduan-sejajar {
+            position: relative;
+            top: -150px;
+            left: 0;
+            margin: 0;
+            transform: none !important;
+            width: auto;
+            height: auto;
+            min-width: 0;
+            min-height: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-cara-juga:hover:not(:disabled),
+        .btn-panduan-sejajar:hover:not(:disabled) {
+            filter: brightness(1.12);
+            transform: none !important;
+        }
+
+        .btn-cara-juga img,
+        .btn-panduan-sejajar img {
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            pointer-events: none;
+            transform: scale(0.5);
+            transform-origin: center;
+        }
+
+        /* ==========================================================================
+           5. LAYAR PERMAINAN UTAMA (GAMEPLAY SCREEN - 16:9)
+           ========================================================================== */
+        #game-screen {
+            padding: 20px 28px;
+            gap: 16px;
+        }
+
+        /* Baris Header HUD */
+        .hud-bar {
+            height: 86px;
+            background: linear-gradient(180deg, #6b3d17 0%, #4a280d 100%);
+            border: 4px solid #2d1604;
+            border-radius: 20px;
+            padding: 0 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.2);
+            color: #fff8e7;
+        }
+
+        .hud-left, .hud-center, .hud-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .hud-stat-pill {
+            background: rgba(20, 10, 2, 0.55);
+            border: 2px solid #b87333;
+            border-radius: 14px;
+            padding: 8px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            color: #ffe066;
+        }
+
+        .hud-stat-label {
+            font-size: 15px;
+            color: #e6ccb2;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hearts-container {
+            display: flex;
+            gap: 6px;
+            font-size: 26px;
+        }
+
+        /* Area Konten Utama: Peta Pulau (Kiri) + Panel Kompas & Soal (Kanan) */
+        .gameplay-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1220px 1fr;
+            gap: 20px;
+            min-height: 0;
+        }
+
+        /* Peta Pulau Grid 8x5 */
+        .map-board-frame {
+            position: relative;
+            background: rgba(255, 255, 255, 0.28);
+            border: 8px solid var(--wood-mid);
+            border-radius: 26px;
+            box-shadow: 0 14px 32px rgba(0,0,0,0.45), inset 0 0 0 4px rgba(255,255,255,0.18);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .map-coord-top {
+            display: grid;
+            grid-template-columns: 54px repeat(8, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .coord-badge-col {
+            background: rgba(45, 27, 14, 0.82);
+            color: #ffe066;
+            border: 2px solid #d4a359;
+            border-radius: 10px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .map-main-row {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 54px 1fr;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .map-coord-left {
+            display: grid;
+            grid-template-rows: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .coord-badge-row {
+            background: rgba(45, 27, 14, 0.82);
+            color: #ffe066;
+            border: 2px solid #d4a359;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        /* Grid 8 Kolom x 5 Baris */
+        #island-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 8px;
+            background-image: url('./assets/latar2.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            padding: 8px;
+            border-radius: 20px;
+            border: 3px dashed rgba(255, 255, 255, 0.45);
+        }
+
+        .map-tile {
+            position: relative;
+            border-radius: 14px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.14s ease, box-shadow 0.14s ease;
+            overflow: visible;
+        }
+
+        .map-tile.terrain-grass {
+            background: transparent;
+        }
+
+        .map-tile.terrain-sand {
+            background: transparent;
+        }
+
+        .map-tile.terrain-highland {
+            background: transparent;
+        }
+
+        .map-tile:hover {
+            transform: scale(1.04);
+            z-index: 6;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .map-tile.tile-start {
+            box-shadow: 0 0 0 3px rgba(29, 111, 165, 0.8);
+        }
+
+        .map-tile.tile-visited {
+            background: transparent;
+        }
+
+        .map-tile.tile-current {
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+            z-index: 7;
+        }
+
+        .map-tile.tile-hint-glow {
+            animation: pulseHint 1.2s infinite;
+        }
+
+        @keyframes pulseHint {
+            0%, 100% { box-shadow: 0 0 0 3px #00f5d4, 0 0 18px #00f5d4; }
+            50% { box-shadow: 0 0 0 7px #00bbf9, 0 0 28px #00bbf9; }
+        }
+
+        .map-tile.tile-correct {
+            background: linear-gradient(145deg, #80ed99 0%, #38b000 100%) !important;
+            box-shadow: 0 0 0 5px #ffd13b, 0 10px 25px rgba(0,0,0,0.5) !important;
+            z-index: 8;
+        }
+
+        .map-tile.tile-wrong {
+            background: linear-gradient(145deg, #ff8fa3 0%, #e63946 100%) !important;
+            box-shadow: 0 0 0 5px rgba(255,255,255,0.7), 0 10px 18px rgba(0,0,0,0.35) !important;
+            animation: shakeTile 0.45s ease;
+        }
+
+        @keyframes shakeTile {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-7px); }
+            50% { transform: translateX(7px); }
+            75% { transform: translateX(-5px); }
+        }
+
+        .tile-coord-tag {
+            position: absolute;
+            top: 4px;
+            left: 6px;
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 800;
+            color: rgba(45, 27, 14, 0.78);
+            background: rgba(255, 255, 255, 0.65);
+            padding: 1px 6px;
+            border-radius: 6px;
+            pointer-events: none;
+        }
+
+        .tile-landmark-icon {
+            display: none;
+            width: 58px;
+            height: 58px;
+            align-items: center;
+            justify-content: center;
+            margin-top: -8px;
+            pointer-events: none;
+        }
+
+        .tile-landmark-name {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            text-align: center;
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #2b1807;
+            background: rgba(255, 252, 240, 0.88);
+            border: 1px solid rgba(124, 74, 30, 0.35);
+            border-radius: 6px;
+            padding: 1px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+        }
+
+        /* Token Karakter Robot Pramuka di Atas Peta */
+        .finch-token {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 12;
+            pointer-events: none;
+            animation: bounceFinch 1s ease-in-out infinite;
+        }
+
+        @keyframes bounceFinch {
+            0%, 100% { transform: translateY(-4px) scale(1.03); }
+            50% { transform: translateY(-11px) scale(1.08); }
+        }
+
+        /* Overlay Kompas Mini di Atas Karakter Finch (Dapat Diaktifkan Pemain) */
+        .mini-compass-overlay {
+            position: absolute;
+            width: 170px;
+            height: 170px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0.92;
+        }
+
+        /* Baris Status Bawah Peta */
+        .map-footer-bar {
+            margin-top: 10px;
+            background: rgba(29, 17, 7, 0.78);
+            border: 2px solid #d4a359;
+            border-radius: 14px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #fff8e7;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .path-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ffe066;
+            font-family: var(--font-display);
+            font-weight: 700;
+        }
+
+        /* ==========================================================================
+           6. PANEL KANAN: SOAL, KOMPAS 8 ARAH, DAN TOMBOL AKSI
+           ========================================================================== */
+        .side-control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-height: 0;
+        }
+
+        /* Kartu Soal / Petunjuk Harta Karun */
+        .clue-card {
+            background: rgba(255, 255, 255, 0.35);
+            border: 6px solid var(--wood-mid);
+            border-radius: 24px;
+            padding: 18px 22px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25), inset 0 0 0 3px rgba(255,255,255,0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clue-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px dashed #d4a359;
+            padding-bottom: 8px;
+        }
+
+        .clue-badge {
+            background: #7c4a1e;
+            color: #ffe066;
+            padding: 4px 14px;
+            border-radius: 99px;
+            font-family: var(--font-display);
+            font-size: 17px;
+            font-weight: 800;
+        }
+
+        .clue-type-tag {
+            font-size: 15px;
+            font-weight: 800;
+            color: #2d6a4f;
+            background: #d8f3dc;
+            padding: 4px 12px;
+            border-radius: 99px;
+        }
+
+        .clue-question-text {
+            font-size: 20px;
+            line-height: 1.42;
+            color: #2d1b0e;
+            font-weight: 700;
+            min-height: 84px;
+        }
+
+        .clue-question-text strong {
+            color: #b45309;
+            background: #fef3c7;
+            padding: 0 5px;
+            border-radius: 5px;
+        }
+
+        /* Pilihan Jawaban Cepat A/B/C/D */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: #ffffff;
+            border: 3px solid #c9974c;
+            border-radius: 12px;
+            padding: 9px 12px;
+            font-family: var(--font-display);
+            font-size: 17px;
+            font-weight: 700;
+            color: #3d210a;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.14s ease;
+            text-align: left;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #fff3bf;
+            border-color: #d97706;
+            transform: translateY(-2px);
+        }
+
+        .option-btn.selected-opt {
+            background: #ffec99;
+            border-color: #d97706;
+            box-shadow: 0 4px 0 #d97706;
+        }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #7c4a1e;
+            color: #ffe066;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        /* Panel Kontrol Kompas 8 Arah Mata Angin */
+        .compass-control-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.28);
+            border: 6px solid var(--wood-mid);
+            border-radius: 24px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25), inset 0 0 0 3px rgba(255,255,255,0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .compass-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .compass-title {
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--wood-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .compass-interactive-layout {
+            display: grid;
+            grid-template-columns: 230px 1fr;
+            gap: 16px;
+            align-items: center;
+            margin: 6px 0;
+        }
+
+        /* Visual Mawar Kompas 8 Arah */
+        .compass-rose-box {
+            position: relative;
+            width: 225px;
+            height: 225px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Grid 3x3 Tombol Navigasi 8 Arah Mata Angin + Tombol Gali di Tengah */
+        .direction-pad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 66px);
+            gap: 8px;
+        }
+
+        .dir-btn {
+            font-family: var(--font-display);
+            border: 3px solid #5c3412;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #fff8e7 0%, #e6ccb2 100%);
+            color: #3b1f06;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 0 #5c3412;
+            transition: all 0.1s ease;
+            padding: 4px;
+        }
+
+        .dir-btn.cardinal {
+            background: linear-gradient(180deg, #ffe8a3 0%, #f3c65f 100%);
+            border-color: #8c510a;
+            box-shadow: 0 4px 0 #8c510a;
+        }
+
+        .dir-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.06);
+        }
+
+        .dir-btn:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #5c3412;
+        }
+
+        .dir-btn-code {
+            font-size: 19px;
+            font-weight: 900;
+            line-height: 1.05;
+        }
+
+        .dir-btn-label {
+            font-size: 12px;
+            font-weight: 700;
+            opacity: 0.85;
+        }
+
+        .dig-center-btn {
+            background: linear-gradient(180deg, #ff9f1c 0%, #e76f51 100%);
+            color: #ffffff;
+            border: 3px solid #6b2710;
+            box-shadow: 0 4px 0 #6b2710;
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.12s ease;
+        }
+
+        .dig-center-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .action-bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.3fr;
+            gap: 10px;
+        }
+
+        /* ==========================================================================
+           7. MODAL POP-UP (UMPAN BALIK, PANDUAN, KOMPAS EDUKASI, VS CODE HELPER)
+           ========================================================================== */
+        .modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(8, 24, 36, 0.78);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+            animation: fadeInModal 0.2s ease-out;
+        }
+
+        @keyframes fadeInModal {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 1120px;
+            max-height: 920px;
+            background: var(--parchment-bg);
+            border: 10px solid var(--wood-mid);
+            border-radius: 32px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.65), inset 0 0 0 5px var(--parchment-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(180deg, #7c4a1e 0%, #583110 100%);
+            color: #ffe066;
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 4px solid #3b1f06;
+        }
+
+        .modal-header h2 {
+            font-family: var(--font-display);
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal-body {
+            padding: 28px 34px;
+            overflow-y: auto;
+            font-size: 19px;
+            line-height: 1.55;
+            color: #2d1b0e;
+        }
+
+        .modal-footer {
+            padding: 18px 34px;
+            background: #f3e1be;
+            border-top: 3px solid #d4a359;
+            display: flex;
+            justify-content: flex-end;
+            gap: 14px;
+        }
+
+        /* Toast Notifikasi di Dalam Kanvas */
+        #game-toast {
+            position: absolute;
+            top: 118px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-30px);
+            background: rgba(28, 16, 6, 0.94);
+            color: #ffe066;
+            border: 3px solid #ffd13b;
+            border-radius: 99px;
+            padding: 12px 30px;
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            z-index: 95;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.45);
+        }
+
+        #game-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Tabel & Kartu pada Modal */
+        .compass-edu-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .compass-edu-item {
+            background: #ffffff;
+            border: 3px solid #d4a359;
+            border-radius: 16px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .compass-edu-item strong {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 24px;
+            color: #b45309;
+            margin-bottom: 4px;
+        }
+
+        .code-block-vscode {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 16px 20px;
+            border-radius: 14px;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 2px solid #45475a;
+        }
+
+        .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .review-item {
+            background: #ffffff;
+            border: 2px solid #d4a359;
+            border-radius: 14px;
+            padding: 14px 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="viewport-wrapper">
+    <!-- KANVAS UTAMA RASIO FIX 16:9 (1920 x 1080) -->
+    <div id="game-stage">
+        <div class="ocean-pattern"></div>
+
+        <!-- NOTIFIKASI TOAST -->
+        <div id="game-toast">Pesan Permainan</div>
+
+        <!-- ==================================================================
+             LAYAR 1: MENU UTAMA (START SCREEN)
+             ================================================================== -->
+        <section id="start-screen" class="screen active">
+            <div class="top-utility-bar">
+                <div class="badge-edition">
+                    <span>🌏</span>
+                    <span>Selamat datang di Nusantara</span>
+                </div>
+            </div>
+
+            <div class="hero-card">
+                <div class="hero-left">
+                    <div>
+                        <div style="display:flex; justify-content:center; margin: 12px 0 18px;">
+                            <img src="./assets/judul.png" alt="Judul permainan" style="max-width:none; width: 650px; height: auto; display: block;">
+                        </div>
+
+                        <div class="start-actions-row">
+                            <button class="btn-game btn-gold btn-play-main" onclick="GameApp.startGame()" type="button" aria-label="Mulai petualangan">
+                                <img src="./assets/mulai.png" alt="Mulai Petualangan">
+                            </button>
+                        </div>
+
+                        <div class="level-selector-title">
+                            
+                        </div>
+                        <div class="level-cards-grid">
+                            <button class="level-card selected" data-level="1" onclick="GameApp.selectLevelMode(1)" style="background-image:url('./assets/kotak1.png');background-size:cover;background-position:center;background-repeat:no-repeat;">
+                            </button>
+                            <button class="level-card" data-level="2" onclick="GameApp.selectLevelMode(2)" style="background-image:url('./assets/kotak2.png');background-size:cover;background-position:center;background-repeat:no-repeat;">
+                            </button>
+                            <button class="level-card" data-level="3" onclick="GameApp.selectLevelMode(3)" style="background-image:url('./assets/kotak3.png');background-size:cover;background-position:center;background-repeat:no-repeat;">
+                            </button>
+                            <button class="level-card" data-level="all" onclick="GameApp.selectLevelMode('all')" style="background-image:url('./assets/kotak4.png');background-size:cover;background-position:center;background-repeat:no-repeat;">
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="hero-quick-buttons" style="width: 100%; justify-content: center; margin-top: 0;">
+                        <button class="btn-game btn-green btn-image-only" style="padding: 0; transform: translateY(-49px) scale(0.6667);" onclick="GameApp.openModal('modal-compass-edu')" type="button" aria-label="Belajar 8 Arah Mata Angin">
+                            <img src="./assets/belajar.png" alt="Belajar 8 Arah Mata Angin">
+                        </button>
+                    </div>
+                    <div class="hero-actions-row">
+                        <button class="btn-game btn-blue btn-image-small btn-cara-juga" style="padding: 0;" onclick="GameApp.openModal('modal-howto')" type="button" aria-label="Cara Bermain">
+                            <img src="./assets/cara.png" alt="Cara Bermain">
+                        </button>
+                        <button class="btn-game btn-wood btn-image-half btn-panduan-sejajar" style="padding: 0;" onclick="GameApp.openModal('modal-vscode-assets')" type="button" aria-label="Panduan Aset & Soal">
+                            <img src="./assets/informasi.png" alt="Panduan Aset & Soal">
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hero-right">
+                    <div id="hero-illustration-slot" class="hero-mascot-stage">
+                        <!-- Diisi otomatis oleh sistem aset (mendukung gambar VS Code atau SVG bawaan) -->
+                    </div>
+                </div>
+            </div>
+
+            <div style="color: rgba(255,255,255,0.8); font-size: 18px; font-weight: 600;">
+                Tips: Pilih level, lalu klik "mulai petualangan" dan gunakan tombol "belajar", "cara bermain" dan "informasi" untuk gambaran umum pembelajaran!
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             LAYAR 2: PERMAINAN UTAMA (GAME SCREEN)
+             ================================================================== -->
+        <section id="game-screen" class="screen">
+            <!-- HEADER HUD -->
+            <header class="hud-bar">
+                <div class="hud-left">
+                    <button class="btn-game btn-wood icon-btn" title="Kembali ke Menu Utama" onclick="GameApp.confirmReturnHome()">🏠</button>
+                    <button class="btn-game btn-wood icon-btn" title="Ulangi Posisi Awal Soal Ini" onclick="GameApp.resetCurrentQuestionPosition()">🔄</button>
+                    <div class="hud-stat-pill">
+                        <div>
+                            <div class="hud-stat-label">Mode Level</div>
+                            <div id="hud-level-name">Level 1</div>
+                        </div>
+                    </div>
+                    <div class="hud-stat-pill">
+                        <div>
+                            <div class="hud-stat-label">Misi Harta Karun</div>
+                            <div id="hud-question-counter">1 / 10</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hud-center">
+                    <div class="hud-stat-pill">
+                        <span>💎</span>
+                        <div>
+                            <div class="hud-stat-label">Skor Harta</div>
+                            <div id="hud-score">0</div>
+                        </div>
+                    </div>
+                    <div class="hud-stat-pill">
+                        <span>⏱️</span>
+                        <div>
+                            <div class="hud-stat-label">Waktu</div>
+                            <div id="hud-timer">00:00</div>
+                        </div>
+                    </div>
+                    <div class="hud-stat-pill">
+                        <div>
+                            <div class="hud-stat-label">Kesempatan</div>
+                            <div id="hud-hearts" class="hearts-container">❤️❤️❤️</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hud-right">
+                    <button class="btn-game btn-blue" style="padding: 10px 18px; font-size: 18px;" onclick="GameApp.toggleMiniCompassOverlay()">
+                        🧭 Kompas Karakter
+                    </button>
+                    <button class="btn-game btn-green" style="padding: 10px 18px; font-size: 18px;" onclick="GameApp.openModal('modal-compass-edu')">
+                        📘 Tabel Arah
+                    </button>
+                </div>
+            </header>
+
+            <!-- ISI UTAMA PERMAINAN -->
+            <div class="gameplay-body">
+                <!-- KIRI: PAPAN PETA PULAU 8x5 -->
+                <div class="map-board-frame" id="map-board-container">
+                    <div>
+                        <!-- Label Kolom A - H -->
+                        <div class="map-coord-top">
+                            <div class="coord-badge-col" style="background:#7c4a1e;">🧭</div>
+                            <div class="coord-badge-col">A</div>
+                            <div class="coord-badge-col">B</div>
+                            <div class="coord-badge-col">C</div>
+                            <div class="coord-badge-col">D</div>
+                            <div class="coord-badge-col">E</div>
+                            <div class="coord-badge-col">F</div>
+                            <div class="coord-badge-col">G</div>
+                            <div class="coord-badge-col">H</div>
+                        </div>
+
+                        <!-- Baris 1 - 5 dan Grid Pulau -->
+                        <div class="map-main-row" style="height: 750px;">
+                            <div class="map-coord-left">
+                                <div class="coord-badge-row">1</div>
+                                <div class="coord-badge-row">2</div>
+                                <div class="coord-badge-row">3</div>
+                                <div class="coord-badge-row">4</div>
+                                <div class="coord-badge-row">5</div>
+                            </div>
+                            <div id="island-grid">
+                                <!-- 40 Petak Peta (A1 - H5) dirender secara dinamis -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Baris Informasi Rute di Bawah Peta -->
+                    <div class="map-footer-bar">
+                        <div class="path-breadcrumb">
+                            <span>🐦 Posisi Robot:</span>
+                            <span id="status-current-pos" style="background:#b45309; color:#fff; padding:2px 10px; border-radius:8px;">E3 (Kemah)</span>
+                            <span style="color:#ccc;">|</span>
+                            <span>👣 Jejak Langkah:</span>
+                            <span id="status-step-history">Titik Awal</span>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn-game btn-wood" style="padding: 6px 14px; font-size: 15px;" onclick="GameApp.undoStep()">
+                                ↩️ Batal 1 Langkah
+                            </button>
+                            <button class="btn-game btn-wood" style="padding: 6px 14px; font-size: 15px;" onclick="GameApp.prevQuestion()">
+                                ⬅️ Soal Sebelumnya
+                            </button>
+                            <button class="btn-game btn-wood" style="padding: 6px 14px; font-size: 15px;" onclick="GameApp.nextQuestionManual()">
+                                Lewati / Soal Berikutnya ➡️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KANAN: KARTU PETUNJUK SOAL & KONTROL KOMPAS 8 ARAH -->
+                <div class="side-control-panel">
+                    <!-- KARTU SOAL -->
+                    <div class="clue-card">
+                        <div class="clue-header">
+                            <span id="clue-badge-number" class="clue-badge">PETUNJUK #1</span>
+                            <span id="clue-badge-type" class="clue-type-tag">Navigasi Kompas</span>
+                        </div>
+                        <div id="clue-question-body" class="clue-question-text">
+                            Memuat petunjuk harta karun...
+                        </div>
+                        <div style="font-size: 15px; font-weight: 700; color: #6b4c30;">
+                            Pilih jawaban cepat ATAU gerakkan Robot Pramuka ke lokasi lalu klik <strong>GALI!</strong>:
+                        </div>
+                        <div id="clue-options-container" class="options-grid">
+                            <!-- 4 Tombol Opsi A, B, C, D -->
+                        </div>
+                    </div>
+
+                    <!-- KARTU KOMPAS & KEMUDI 8 ARAH MATA ANGIN -->
+                    <div class="compass-control-card">
+                        <div class="compass-card-top">
+                            <div class="compass-title">
+                                <span>🧭</span> Kemudi Kompas 8 Arah Mata Angin
+                            </div>
+                            <span style="font-size: 14px; font-weight: 700; color: #7c4a1e;">Klik arah untuk melangkah</span>
+                        </div>
+
+                        <div class="compass-interactive-layout">
+                            <!-- Mawar Kompas Interaktif -->
+                            <div class="compass-rose-box" id="compass-rose-widget">
+                                <!-- SVG Mawar Kompas 8 Arah -->
+                            </div>
+
+                            <!-- 8 Tombol Arah Mata Angin + Tombol Gali -->
+                            <div class="direction-pad-grid">
+                                <button class="dir-btn" onclick="GameApp.stepDirection('BL')" title="Barat Laut (Kiri Atas)">
+                                    <span class="dir-btn-code">↖ BL</span>
+                                    <span class="dir-btn-label">Barat Laut</span>
+                                </button>
+                                <button class="dir-btn cardinal" onclick="GameApp.stepDirection('U')" title="Utara (Atas)">
+                                    <span class="dir-btn-code">⬆ U</span>
+                                    <span class="dir-btn-label">Utara</span>
+                                </button>
+                                <button class="dir-btn" onclick="GameApp.stepDirection('TL')" title="Timur Laut (Kanan Atas)">
+                                    <span class="dir-btn-code">↗ TL</span>
+                                    <span class="dir-btn-label">Timur Laut</span>
+                                </button>
+
+                                <button class="dir-btn cardinal" onclick="GameApp.stepDirection('B')" title="Barat (Kiri)">
+                                    <span class="dir-btn-code">⬅ B</span>
+                                    <span class="dir-btn-label">Barat</span>
+                                </button>
+                                <button class="dig-center-btn" onclick="GameApp.digAtCurrentPosition()" title="Gali Harta Karun di Posisi Finch Sekarang!">
+                                    <span style="font-size:24px;">⛏️</span>
+                                    <span>GALI!</span>
+                                </button>
+                                <button class="dir-btn cardinal" onclick="GameApp.stepDirection('T')" title="Timur (Kanan)">
+                                    <span class="dir-btn-code">➡ T</span>
+                                    <span class="dir-btn-label">Timur</span>
+                                </button>
+
+                                <button class="dir-btn" onclick="GameApp.stepDirection('BD')" title="Barat Daya (Kiri Bawah)">
+                                    <span class="dir-btn-code">↙ BD</span>
+                                    <span class="dir-btn-label">Barat Daya</span>
+                                </button>
+                                <button class="dir-btn cardinal" onclick="GameApp.stepDirection('S')" title="Selatan (Bawah)">
+                                    <span class="dir-btn-code">⬇ S</span>
+                                    <span class="dir-btn-label">Selatan</span>
+                                </button>
+                                <button class="dir-btn" onclick="GameApp.stepDirection('TG')" title="Tenggara (Kanan Bawah)">
+                                    <span class="dir-btn-code">↘ TG</span>
+                                    <span class="dir-btn-label">Tenggara</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Baris Tombol Bantuan & Gali -->
+                        <div class="action-bottom-row">
+                            <button class="btn-game btn-blue" style="padding: 14px 10px; font-size: 18px;" onclick="GameApp.useHint()">
+                                💡 Petunjuk Arah
+                            </button>
+                            <button class="btn-game btn-wood" style="padding: 14px 10px; font-size: 18px;" onclick="GameApp.resetCurrentQuestionPosition()">
+                                🔄 Ke Titik Awal
+                            </button>
+                            <button class="btn-game btn-gold" style="padding: 14px 14px; font-size: 20px;" onclick="GameApp.digAtCurrentPosition()">
+                                ⛏️ Gali di Sini <span id="btn-dig-coord">E3</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             MODAL 1: HASIL PENGGALIAN PER SOAL (FEEDBACK MODAL)
+             ================================================================== -->
+        <div id="modal-feedback" class="modal-backdrop">
+            <div class="modal-box" style="max-width: 780px;">
+                <div class="modal-header" id="feedback-modal-header">
+                    <h2 id="feedback-modal-title">🎉 Harta Karun Ditemukan!</h2>
+                </div>
+                <div class="modal-body" style="text-align: center;">
+                    <div id="feedback-illustration" style="width: 190px; height: 190px; margin: 0 auto 16px;"></div>
+                    <h3 id="feedback-headline" style="font-family: var(--font-display); font-size: 30px; color: #2d1b0e; margin-bottom: 10px;">
+                        Luar Biasa, Kapten!
+                    </h3>
+                    <p id="feedback-explanation" style="font-size: 20px; background: #fff3cd; border: 2px solid #eab308; padding: 16px 20px; border-radius: 16px; text-align: left;">
+                        Penjelasan rute kompas...
+                    </p>
+                </div>
+                <div class="modal-footer" style="justify-content: center;">
+                    <button id="btn-feedback-retry" class="btn-game btn-wood" style="padding: 14px 28px; font-size: 22px; display: none;" onclick="GameApp.closeModal('modal-feedback')">
+                        🧭 Coba Lagi di Peta
+                    </button>
+                    <button id="btn-feedback-next" class="btn-game btn-gold" style="padding: 14px 36px; font-size: 24px;" onclick="GameApp.proceedAfterFeedback()">
+                        Misi Berikutnya ➡️
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             MODAL 2: LAYAR SELESAI / SKOR AKHIR (VICTORY SUMMARY MODAL)
+             ================================================================== -->
+        <div id="modal-summary" class="modal-backdrop">
+            <div class="modal-box" style="max-width: 980px;">
+                <div class="modal-header">
+                    <h2>🏆 Ekspedisi Harta Karun Selesai!</h2>
+                </div>
+                <div class="modal-body" style="text-align: center;">
+                    <div id="summary-trophy-slot" style="width: 170px; height: 170px; margin: 0 auto 12px;"></div>
+                    <h3 id="summary-rank-title" style="font-family: var(--font-display); font-size: 36px; color: #b45309; margin-bottom: 8px;">
+                        Navigator Ulung!
+                    </h3>
+                    <p id="summary-subtitle" style="font-size: 20px; margin-bottom: 22px;">
+                        Kamu berhasil membantu Robot Pramuka menaklukkan peta kompas pulau harta karun!
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div class="compass-edu-item">
+                            <span>💎 Total Skor</span>
+                            <strong id="sum-score" style="font-size: 32px;">1000</strong>
+                        </div>
+                        <div class="compass-edu-item">
+                            <span>📦 Peti Ditemukan</span>
+                            <strong id="sum-correct" style="font-size: 32px;">10 / 10</strong>
+                        </div>
+                        <div class="compass-edu-item">
+                            <span>⏱️ Waktu Tempuh</span>
+                            <strong id="sum-time" style="font-size: 32px;">01:45</strong>
+                        </div>
+                        <div class="compass-edu-item">
+                            <span>⭐ Peringkat</span>
+                            <strong id="sum-stars" style="font-size: 32px;">⭐⭐⭐</strong>
+                        </div>
+                    </div>
+
+                    <div style="text-align: left;">
+                        <h4 style="font-family: var(--font-display); font-size: 22px; margin-bottom: 10px;">📋 Ringkasan Pembahasan Soal:</h4>
+                        <div id="summary-review-list" class="review-list" style="max-height: 230px; overflow-y: auto; padding-right: 8px;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="justify-content: center; gap: 18px;">
+                    <button class="btn-game btn-wood" style="padding: 14px 28px; font-size: 21px;" onclick="GameApp.returnToMenu()">
+                        🏠 Menu Utama
+                    </button>
+                    <button class="btn-game btn-green" style="padding: 14px 28px; font-size: 21px;" onclick="GameApp.startGame()">
+                        🔄 Mainkan Ulang Level Ini
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             MODAL 3: PANDUAN CARA BERMAIN
+             ================================================================== -->
+        <div id="modal-howto" class="modal-backdrop">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2>Cara Bermain: Temukan Harta Karun!</h2>
+                    <button class="btn-game btn-red icon-btn" onclick="GameApp.closeModal('modal-howto')">✖</button>
+                </div>
+                <div class="modal-body">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <div class="compass-edu-item" style="text-align: left;">
+                            <strong>1. Baca Petunjuk Kompas</strong>
+                            Setiap misi memberikan petunjuk posisi harta karun berdasarkan <strong>8 Arah Mata Angin, Objek di Peta, atau Koordinat Petak (A1 – H5).</strong> Bacalah soal dengan benar dan gerakkan robot pramuka ke arah sesuai dengan petunjuk soal. Anda juga bisa klik <strong>Ke Titik Awal</strong> dan <strong>Kompas Karakter</strong> untuk membantu menunjukkan arah dan posisi kamu.
+                        </div>
+                        <div class="compass-edu-item" style="text-align: left;">
+                            <strong>2. Dua Cara Menemukan Harta</strong>
+                            <strong>Cara Kemudi Kompas:</strong> Setelah membaca soal dengan teliti, klik 8 tombol arah mata angin (U, TL, T, TG, S, BD, B, BL) untuk menggerakkan Robot Pramuka langkah demi langkah sesuai petunjuk soal, lalu klik <strong>⛏️ GALI!</strong><br>
+                            <strong>Cara Klik Cepat:</strong> Klik langsung petak tujuan di peta atau pilih tombol jawaban <strong>A / B / C / D.</strong>
+                        </div>
+                        <div class="compass-edu-item" style="text-align: left;">
+                            <strong>3. Gunakan Kompas Karakter & Petunjuk</strong>
+                            Bingung menentukan arah dari posisi Robot Pramuka? Klik tombol <strong>"🧭 Kompas Karakter"</strong> di bagian atas untuk menampilkan arah mata angin tepat di sekeliling Robot Pramuka, atau klik <strong>"💡 Petunjuk Arah"!</strong> untuk mendapatkan kunci jawaban jika kamu tidak mampu menjawab soal dengan tepat.
+                        </div>
+                        <div class="compass-edu-item" style="text-align: left;">
+                            <strong>4. Kontrol Keyboard (Opsional)</strong>
+                            Anda juga dapat menggunakan tombol <strong>Panah Keyboard (⬆ ⬇ ⬅ ➡)</strong> atau tombol <strong>W, A, S, D</strong> untuk bergerak, dan tekan <strong>Enter / Spasi</strong> untuk menggali harta karun!
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-game btn-gold" style="padding: 12px 30px; font-size: 21px;" onclick="GameApp.closeModal('modal-howto')">
+                        Siap Berpetualang! 👍
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             MODAL 4: MATERI BELAJAR 8 ARAH MATA ANGIN & KOORDINAT PETA
+             ================================================================== -->
+        <div id="modal-compass-edu" class="modal-backdrop">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2>🧭 Belajar Membaca Kompas 8 Arah Mata Angin</h2>
+                    <button class="btn-game btn-red icon-btn" onclick="GameApp.closeModal('modal-compass-edu')">✖</button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        Pada peta standar, arah <strong>Utara (U)</strong> selalu menunjuk ke bagian <strong>Atas</strong> peta. Berikut adalah 8 arah mata angin (4 arah utama dan 4 arah antara) yang digunakan dalam petualangan ini:
+                    </p>
+                    <div class="compass-edu-grid">
+                        <div class="compass-edu-item">
+                            <strong>⬆ Utara (U)</strong>
+                            Bergerak 1 kotak ke <b>Atas</b> (Nomor baris berkurang, misal B3 ke B2).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>↗ Timur Laut (TL)</strong>
+                            Serong ke <b>Kanan Atas</b> (Antara Utara dan Timur).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>➡ Timur (T)</strong>
+                            Bergerak 1 kotak ke <b>Kanan</b> (Huruf kolom maju, misal B3 ke C3).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>↘ Tenggara (TG)</strong>
+                            Serong ke <b>Kanan Bawah</b> (Antara Selatan dan Timur).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>⬇ Selatan (S)</strong>
+                            Bergerak 1 kotak ke <b>Bawah</b> (Nomor baris bertambah, misal B3 ke B4).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>↙ Barat Daya (BD)</strong>
+                            Serong ke <b>Kiri Bawah</b> (Antara Selatan dan Barat).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>⬅ Barat (B)</strong>
+                            Bergerak 1 kotak ke <b>Kiri</b> (Huruf kolom mundur, misal C3 ke B3).
+                        </div>
+                        <div class="compass-edu-item">
+                            <strong>↖ Barat Laut (BL)</strong>
+                            Serong ke <b>Kiri Atas</b> (Antara Utara dan Barat).
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-game btn-gold" style="padding: 12px 30px; font-size: 21px;" onclick="GameApp.closeModal('modal-compass-edu')">
+                        Mengerti! 🧭
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             MODAL 5: PANDUAN KUSTOMISASI ASET VISUAL & SOAL DI VS CODE
+             ================================================================== -->
+        <div id="modal-vscode-assets" class="modal-backdrop">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2>ℹ️ Informasi Umum dan Rujukan</h2>
+                    <button class="btn-game btn-red icon-btn" onclick="GameApp.closeModal('modal-vscode-assets')">✖</button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                    <strong>1. Tujuan Pembelajaran</strong>
+                    </p>
+                    Murid mampu memahami delapan arah mata angin dan memanfaatkannya dalam permainan denah untuk menetukan arah dan navigasi perjalanan.
+                    </p>
+                    <strong>2. Pengembang</strong>
+                    <p>
+                    Ikhwanul Furqon, M.Pd., Gr. (SMAN 7 Kerinci)
+                    </p>
+                    Redho Ade Putra, M.Pd., Gr. (SD IT Ibnu Abbas)
+                    <p>
+                    <strong>3. Sumber dan Rujukan</strong>
+                    <p>
+                    a. Kusumawardani, A., Fatimah, K., dan Setianingsih, N.I. (2025) Ilmu Pengetahuan Alam dan Sosial untuk SD/MI Kelas III (Edisi Revisi). Kementerian Pendidikan Dasar dan Menengah.
+                    <p>
+                    b. Kusumawardani, A., Fatimah, K., dan Setianingsih, N.I. (2025) Panduan Guru Ilmu Pengetahuan Alam dan Sosial untuk SD/MI Kelas III (Edisi Revisi). Kementerian Pendidikan Dasar dan Menengah.
+                    <p>
+                    c. Kerangka dasar permainan, aset gambar dan suara semuanya menggunakan Gemini AI dan dilakukan kurasi untuk memastikan keakuratan materi dan produk.
+                    </p>
+                    <p style="margin-top: 10px;">
+                        <strong>📊 Statistik Bank Soal Saat Ini:</strong> Terdapat <strong>30 Soal Relevan</strong> yang terbagi menjadi Level 1 (Soal 1–10), Level 2 (Soal 11–20), dan Level 3 (Soal 21–30) di dalam variabel <code>QUESTION_BANK</code>. Soal dibuat dengan Gemini AI dan dilakukan kurasi untuk memastikan kualitas soal sesuai dan layak untuk digunakan.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-game btn-gold" style="padding: 12px 30px; font-size: 21px;" onclick="GameApp.closeModal('modal-vscode-assets')">
+                        Tutup Panduan
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* ==========================================================================
+   BAGIAN A: KONFIGURASI ASET VISUAL UNTUK VS CODE (OFFLINE ASSET MANAGER)
+   ==========================================================================
+   Silakan isi path gambar lokal Anda (misal './assets/finch.png') saat mengedit
+   di VS Code. Jika string dikosongkan ('') atau file belum ada, gim secara
+   otomatis menampilkan grafik SVG bawaan sehingga tidak pernah rusak/blank!
+*/
+const ASSET_CONFIG = {
+    // Karakter & Elemen Utama
+    characterFinch: './assets/robot.png',
+    treasureClosed: './assets/harta.png',
+    treasureOpen: './assets/harta.png',
+    compassRose: './assets/kompas.png',
+    mapBackground: '',        // Contoh: './assets/island_map_bg.png'
+
+    // Gambar Landmark Peta (Opsional: isi jika ingin mengganti ikon di peta)
+    landmarks: {
+        mercusuar: '',        // A1 - Mercusuar Tua
+        puncakEs: '',         // C1 - Bukit Barisan
+        guaTengkorak: '',     // F1 - Gua Tua
+        kapalKaram: '',       // H1 - Kapal Karam
+        hutanPinus: '',       // B2 - Hutan Pinus
+        menaraPantau: '',     // D2 - Menara Pantau
+        gunungApi: '',        // G2 - Gunung Berapi
+        dermaga: '',          // A3 - Dermaga Kayu
+        danauZamrud: '',      // C3 - Danau Zamrud
+        kemah: '',            // E3 - Kemah Petualang
+        airTerjun: '',        // H3 - Air Terjun
+        jembatan: '',         // B4 - Jembatan Kayu
+        kelapaKembar: '',     // D4 - Pohon Kelapa
+        kuilKuno: '',         // F4 - Candi Kuno
+        pantaiPasir: '',      // A5 - Pantai Pasir
+        batuRaksasa: '',      // E5 - Batu Menhir
+        rawaMisterius: '',    // G5 - Rawa Misterius
+        bentengTua: ''        // H5 - Benteng Tua
+    }
+};
+
+/* ==========================================================================
+   BAGIAN B: GENERATOR GRAFIK SVG BAWAAN (100% OFFLINE & TAJAM DI 16:9)
+   ========================================================================== */
+const BuiltinSVG = {
+    // Karakter Robot Pramuka Petualang (Adaptasi Maskot Find the Treasure)
+    finchCharacter(size = 72) {
+        if (ASSET_CONFIG.characterFinch) {
+            return `<img src="${ASSET_CONFIG.characterFinch}" style="width:${size}px;height:${size}px;object-fit:contain;" onerror="this.outerHTML=BuiltinSVG.finchCharacterFallback(${size})">`;
+        }
+        return this.finchCharacterFallback(size);
+    },
+    finchCharacterFallback(size = 72) {
+        return `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="60" cy="108" rx="34" ry="8" fill="rgba(0,0,0,0.28)"/>
+            <!-- Sayap Kiri & Kanan -->
+            <ellipse cx="26" cy="68" rx="14" ry="22" transform="rotate(-18 26 68)" fill="#E76F51" stroke="#3D1E05" stroke-width="4"/>
+            <ellipse cx="94" cy="64" rx="14" ry="22" transform="rotate(24 94 64)" fill="#E76F51" stroke="#3D1E05" stroke-width="4"/>
+            <!-- Badan Robot Pramuka -->
+            <ellipse cx="60" cy="68" rx="33" ry="34" fill="#FF9F1C" stroke="#3D1E05" stroke-width="4.5"/>
+            <ellipse cx="60" cy="76" rx="22" ry="22" fill="#FFF3B0"/>
+            <!-- Mata -->
+            <circle cx="47" cy="56" r="8.5" fill="#FFFFFF" stroke="#3D1E05" stroke-width="3"/>
+            <circle cx="73" cy="56" r="8.5" fill="#FFFFFF" stroke="#3D1E05" stroke-width="3"/>
+            <circle cx="49" cy="56" r="4.5" fill="#1D1E2C"/>
+            <circle cx="71" cy="56" r="4.5" fill="#1D1E2C"/>
+            <circle cx="51" cy="54" r="1.8" fill="#FFFFFF"/>
+            <circle cx="73" cy="54" r="1.8" fill="#FFFFFF"/>
+            <!-- Paruh -->
+            <polygon points="53,63 67,63 60,75" fill="#E63946" stroke="#3D1E05" stroke-width="3" stroke-linejoin="round"/>
+            <!-- Topi Petualang / Bajak Laut -->
+            <path d="M22 42 C35 28, 85 28, 98 42 L88 46 C70 41, 50 41, 32 46 Z" fill="#6B3D17" stroke="#3D1E05" stroke-width="3.5"/>
+            <path d="M35 41 C40 16, 80 16, 85 41 Z" fill="#8D5524" stroke="#3D1E05" stroke-width="3.5"/>
+            <rect x="46" y="32" width="28" height="7" rx="3" fill="#FFD13B" stroke="#3D1E05" stroke-width="2"/>
+            <!-- Kaki -->
+            <path d="M48 100 L44 109 M48 100 L52 109" stroke="#D97706" stroke-width="4" stroke-linecap="round"/>
+            <path d="M72 100 L68 109 M72 100 L76 109" stroke="#D97706" stroke-width="4" stroke-linecap="round"/>
+        </svg>`;
+    },
+
+    // Peti Harta Karun Terbuka
+    treasureOpen(size = 160) {
+        if (ASSET_CONFIG.treasureOpen) {
+            return `<img src="${ASSET_CONFIG.treasureOpen}" style="width:${size}px;height:${size}px;object-fit:contain;">`;
+        }
+        return `
+        <svg width="${size}" height="${size}" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="70" cy="70" r="62" fill="#FFF3B0" stroke="#FFD13B" stroke-width="4" stroke-dasharray="8 6"/>
+            <!-- Tutup Peti Terbuka -->
+            <path d="M26 54 C26 28, 114 28, 114 54 Z" fill="#8D5524" stroke="#3D1E05" stroke-width="4"/>
+            <path d="M48 34 L48 54 M92 34 L92 54" stroke="#FFD13B" stroke-width="6"/>
+            <!-- Kilau Emas & Permata -->
+            <circle cx="52" cy="60" r="12" fill="#FFD13B"/>
+            <circle cx="70" cy="55" r="15" fill="#FFB703"/>
+            <circle cx="88" cy="60" r="12" fill="#FFD13B"/>
+            <polygon points="70,42 78,54 70,66 62,54" fill="#00BBF9" stroke="#FFFFFF" stroke-width="2"/>
+            <polygon points="50,48 56,57 50,66 44,57" fill="#F15BB5" stroke="#FFFFFF" stroke-width="2"/>
+            <polygon points="90,48 96,57 90,66 84,57" fill="#00F5D4" stroke="#FFFFFF" stroke-width="2"/>
+            <!-- Badan Peti -->
+            <rect x="24" y="62" width="92" height="52" rx="8" fill="#A4642E" stroke="#3D1E05" stroke-width="4"/>
+            <rect x="24" y="62" width="92" height="12" fill="#FFD13B" stroke="#3D1E05" stroke-width="3"/>
+            <rect x="61" y="66" width="18" height="22" rx="4" fill="#FFD13B" stroke="#3D1E05" stroke-width="3"/>
+            <circle cx="70" cy="77" r="4" fill="#3D1E05"/>
+        </svg>`;
+    },
+
+    // Mawar Kompas 8 Arah Mata Angin (Digunakan di Panel & Overlay)
+    compassRoseSVG(size = 220) {
+        if (ASSET_CONFIG.compassRose) {
+            return `<img src="${ASSET_CONFIG.compassRose}" style="width:${size}px;height:${size}px;object-fit:contain;">`;
+        }
+        return `
+        <svg width="${size}" height="${size}" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="120" cy="120" r="98" fill="#FFFDF7" stroke="#7C4A1E" stroke-width="6"/>
+            <circle cx="120" cy="120" r="88" fill="none" stroke="#D4A359" stroke-width="2" stroke-dasharray="5 5"/>
+            
+            <!-- 4 Arah Antara (BL, TL, TG, BD) -->
+            <g transform="rotate(45 120 120)">
+                <polygon points="120,38 130,120 120,108" fill="#D97706"/>
+                <polygon points="120,38 110,120 120,108" fill="#F59E0B"/>
+                <polygon points="120,202 130,120 120,132" fill="#D97706"/>
+                <polygon points="120,202 110,120 120,132" fill="#F59E0B"/>
+                <polygon points="38,120 120,110 108,120" fill="#D97706"/>
+                <polygon points="38,120 120,130 108,120" fill="#F59E0B"/>
+                <polygon points="202,120 120,110 132,120" fill="#D97706"/>
+                <polygon points="202,120 120,130 132,120" fill="#F59E0B"/>
+            </g>
+
+            <!-- 4 Arah Utama (U, T, S, B) -->
+            <!-- Utara -->
+            <polygon points="120,22 136,120 120,105" fill="#B91C1C"/>
+            <polygon points="120,22 104,120 120,105" fill="#EF4444"/>
+            <!-- Selatan -->
+            <polygon points="120,218 136,120 120,135" fill="#1D4ED8"/>
+            <polygon points="120,218 104,120 120,135" fill="#3B82F6"/>
+            <!-- Barat -->
+            <polygon points="22,120 120,104 105,120" fill="#7C4A1E"/>
+            <polygon points="22,120 120,136 105,120" fill="#B87333"/>
+            <!-- Timur -->
+            <polygon points="218,120 120,104 135,120" fill="#7C4A1E"/>
+            <polygon points="218,120 120,136 135,120" fill="#B87333"/>
+
+            <circle cx="120" cy="120" r="14" fill="#FFD13B" stroke="#3D1E05" stroke-width="4"/>
+            <circle cx="120" cy="120" r="5" fill="#3D1E05"/>
+
+            <!-- Label 8 Arah Mata Angin Bahasa Indonesia -->
+            <rect x="103" y="3" width="34" height="24" rx="6" fill="#EF4444"/>
+            <text x="120" y="20" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-weight="900" font-size="16">U</text>
+
+            <rect x="103" y="213" width="34" height="24" rx="6" fill="#2563EB"/>
+            <text x="120" y="230" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-weight="900" font-size="16">S</text>
+
+            <rect x="211" y="108" width="26" height="24" rx="6" fill="#7C4A1E"/>
+            <text x="224" y="125" text-anchor="middle" fill="#FFE066" font-family="sans-serif" font-weight="900" font-size="15">T</text>
+
+            <rect x="3" y="108" width="26" height="24" rx="6" fill="#7C4A1E"/>
+            <text x="16" y="125" text-anchor="middle" fill="#FFE066" font-family="sans-serif" font-weight="900" font-size="15">B</text>
+
+            <text x="186" y="56" text-anchor="middle" fill="#92400E" font-family="sans-serif" font-weight="900" font-size="14">TL</text>
+            <text x="186" y="194" text-anchor="middle" fill="#92400E" font-family="sans-serif" font-weight="900" font-size="14">TG</text>
+            <text x="54" y="194" text-anchor="middle" fill="#92400E" font-family="sans-serif" font-weight="900" font-size="14">BD</text>
+            <text x="54" y="56" text-anchor="middle" fill="#92400E" font-family="sans-serif" font-weight="900" font-size="14">BL</text>
+        </svg>`;
+    },
+
+    // Ikon Landmark Peta Pulau
+    landmarkSVG(key) {
+        const customUrl = ASSET_CONFIG.landmarks && ASSET_CONFIG.landmarks[key];
+        if (customUrl) {
+            return `<img src="${customUrl}" style="width:54px;height:54px;object-fit:contain;">`;
+        }
+        const icons = {
+            mercusuar: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M24 54 L28 18 L36 18 L40 54 Z" fill="#EF4444" stroke="#3D1E05" stroke-width="3"/><polygon points="26,30 38,30 39,40 25,40" fill="#FFFFFF"/><rect x="25" y="12" width="14" height="6" fill="#FFD13B" stroke="#3D1E05" stroke-width="2.5"/><polygon points="22,12 42,12 32,4" fill="#B91C1C" stroke="#3D1E05" stroke-width="2.5"/><rect x="18" y="54" width="28" height="5" rx="2" fill="#6B7280"/></svg>`,
+            puncakEs: `<svg viewBox="0 0 64 64" width="52" height="52"><polygon points="8,54 28,14 46,54" fill="#64748B" stroke="#1E293B" stroke-width="3"/><polygon points="26,54 42,22 58,54" fill="#94A3B8" stroke="#1E293B" stroke-width="3"/><polygon points="28,14 21,28 28,25 35,28" fill="#F8FAFC"/></svg>`,
+            guaTengkorak: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M10 54 C10 20, 54 20, 54 54 Z" fill="#6B7280" stroke="#1F2937" stroke-width="3"/><path d="M20 54 C20 34, 44 34, 44 54 Z" fill="#111827"/><circle cx="26" cy="28" r="4" fill="#F3F4F6"/><circle cx="38" cy="28" r="4" fill="#F3F4F6"/></svg>`,
+            kapalKaram: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M10 38 L54 38 L46 52 L18 52 Z" fill="#8D5524" stroke="#3D1E05" stroke-width="3"/><line x1="32" y1="10" x2="32" y2="38" stroke="#3D1E05" stroke-width="4"/><polygon points="32,12 50,24 32,32" fill="#FDE68A" stroke="#3D1E05" stroke-width="2.5"/></svg>`,
+            hutanPinus: `<svg viewBox="0 0 64 64" width="52" height="52"><rect x="28" y="44" width="8" height="12" fill="#7C4A1E"/><polygon points="32,8 14,30 50,30" fill="#2D6A4F" stroke="#1B4332" stroke-width="2.5"/><polygon points="32,20 12,46 52,46" fill="#40916C" stroke="#1B4332" stroke-width="2.5"/></svg>`,
+            menaraPantau: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M22 54 L26 26 M42 54 L38 26 M23 42 L41 42" stroke="#7C4A1E" stroke-width="4"/><rect x="20" y="16" width="24" height="12" rx="2" fill="#D97706" stroke="#3D1E05" stroke-width="2.5"/><polygon points="16,16 48,16 32,6" fill="#9A3412" stroke="#3D1E05" stroke-width="2.5"/></svg>`,
+            gunungApi: `<svg viewBox="0 0 64 64" width="52" height="52"><polygon points="8,54 24,18 40,18 56,54" fill="#78350F" stroke="#3D1E05" stroke-width="3"/><path d="M24 18 Q28 28 32 22 Q36 28 40 18" fill="#EF4444"/><circle cx="32" cy="10" r="5" fill="#F59E0B"/><circle cx="25" cy="12" r="3.5" fill="#EF4444"/></svg>`,
+            dermaga: `<svg viewBox="0 0 64 64" width="52" height="52"><rect x="8" y="34" width="48" height="8" rx="2" fill="#A4642E" stroke="#3D1E05" stroke-width="2.5"/><rect x="14" y="26" width="6" height="28" fill="#7C4A1E"/><rect x="44" y="26" width="6" height="28" fill="#7C4A1E"/><circle cx="32" cy="24" r="7" fill="none" stroke="#EF4444" stroke-width="4"/></svg>`,
+            danauZamrud: `<svg viewBox="0 0 64 64" width="52" height="52"><ellipse cx="32" cy="36" rx="24" ry="15" fill="#00BBF9" stroke="#0077B6" stroke-width="3"/><path d="M20 34 Q26 30 32 34 T44 34" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+            kemah: `<svg viewBox="0 0 64 64" width="52" height="52"><polygon points="10,52 32,14 54,52" fill="#F59E0B" stroke="#78350F" stroke-width="3"/><polygon points="24,52 32,32 40,52" fill="#451A03"/><flag points="32,14 44,18 32,22" fill="#EF4444"/></svg>`,
+            airTerjun: `<svg viewBox="0 0 64 64" width="52" height="52"><rect x="14" y="12" width="36" height="40" rx="6" fill="#64748B"/><path d="M24 12 L22 52 L42 52 L40 12 Z" fill="#38BDF8"/><ellipse cx="32" cy="52" rx="18" ry="5" fill="#E0F2FE"/></svg>`,
+            jembatan: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M8 42 Q32 24 56 42" fill="none" stroke="#8D5524" stroke-width="6"/><path d="M8 28 Q32 12 56 28" fill="none" stroke="#B45309" stroke-width="3"/><line x1="12" y1="26" x2="12" y2="46" stroke="#451A03" stroke-width="4"/><line x1="52" y1="26" x2="52" y2="46" stroke="#451A03" stroke-width="4"/></svg>`,
+            kelapaKembar: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M28 54 Q24 34 20 20" fill="none" stroke="#8D5524" stroke-width="5" stroke-linecap="round"/><path d="M36 54 Q40 34 44 20" fill="none" stroke="#8D5524" stroke-width="5" stroke-linecap="round"/><circle cx="20" cy="18" r="10" fill="#2D6A4F"/><circle cx="44" cy="18" r="10" fill="#40916C"/></svg>`,
+            kuilKuno: `<svg viewBox="0 0 64 64" width="52" height="52"><rect x="12" y="44" width="40" height="8" fill="#D97706" stroke="#451A03" stroke-width="2.5"/><rect x="18" y="32" width="28" height="12" fill="#F59E0B" stroke="#451A03" stroke-width="2.5"/><polygon points="22,32 42,32 36,18 28,18" fill="#FBBF24" stroke="#451A03" stroke-width="2.5"/></svg>`,
+            pantaiPasir: `<svg viewBox="0 0 64 64" width="52" height="52"><ellipse cx="32" cy="46" rx="22" ry="8" fill="#FDE68A"/><line x1="32" y1="46" x2="38" y2="20" stroke="#7C4A1E" stroke-width="3.5"/><path d="M18 22 Q38 8 52 26 Z" fill="#EF4444" stroke="#7F1D1D" stroke-width="2.5"/></svg>`,
+            batuRaksasa: `<svg viewBox="0 0 64 64" width="52" height="52"><polygon points="14,52 20,20 44,18 52,52" fill="#78716C" stroke="#292524" stroke-width="3"/><circle cx="28" cy="34" r="3" fill="#292524"/><circle cx="38" cy="34" r="3" fill="#292524"/></svg>`,
+            rawaMisterius: `<svg viewBox="0 0 64 64" width="52" height="52"><ellipse cx="32" cy="42" rx="22" ry="10" fill="#52796F" stroke="#2F3E46" stroke-width="2.5"/><line x1="22" y1="40" x2="22" y2="18" stroke="#354F52" stroke-width="3"/><ellipse cx="22" cy="20" rx="3" ry="6" fill="#7F4F24"/></svg>`,
+            bentengTua: `<svg viewBox="0 0 64 64" width="52" height="52"><path d="M14 52 L14 20 L22 20 L22 26 L28 26 L28 20 L36 20 L36 26 L42 26 L42 20 L50 20 L50 52 Z" fill="#9CA3AF" stroke="#1F2937" stroke-width="3"/><path d="M26 52 L26 38 A6 6 0 0 1 38 38 L38 52 Z" fill="#4B5563"/></svg>`
+        };
+        return icons[key] || '';
+    }
+};
+
+/* ==========================================================================
+   BAGIAN C: SISTEM AUDIO OFFLINE (WEB AUDIO API SYNTHESIZER - TANPA FILE LUAR)
+   ========================================================================== */
+const AudioSys = {
+    ctx: null,
+    bgmEnabled: false,
+    sfxEnabled: true,
+    bgmInterval: null,
+
+    init() {
+        this.stopBGM();
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    },
+
+    playTone(freq, type = 'sine', duration = 0.15, vol = 0.12, delay = 0) {
+        if (!this.sfxEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+    },
+
+    click() {
+        this.playTone(580, 'triangle', 0.08, 0.14);
+    },
+
+    step() {
+        this.playTone(440, 'sine', 0.07, 0.12);
+        this.playTone(660, 'triangle', 0.09, 0.10, 0.04);
+    },
+
+    hint() {
+        this.playTone(523.25, 'sine', 0.12, 0.12, 0);
+        this.playTone(659.25, 'sine', 0.16, 0.12, 0.1);
+        this.playTone(783.99, 'sine', 0.22, 0.12, 0.2);
+    },
+
+    treasureFound() {
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((n, i) => this.playTone(n, 'triangle', 0.22, 0.18, i * 0.09));
+    },
+
+    wrongDig() {
+        this.playTone(240, 'sawtooth', 0.18, 0.13, 0);
+        this.playTone(180, 'sawtooth', 0.26, 0.13, 0.14);
+    },
+
+    victoryFanfare() {
+        const melody = [523.25, 659.25, 783.99, 659.25, 783.99, 1046.50];
+        melody.forEach((n, i) => this.playTone(n, 'triangle', 0.24, 0.18, i * 0.12));
+    },
+
+    toggleBGM() {
+        this.bgmEnabled = !this.bgmEnabled;
+        this.updateButtons();
+        if (this.bgmEnabled) {
+            this.startBGM();
+            GameApp.showToast('🎵 Musik Latar Diaktifkan');
+        } else {
+            this.stopBGM();
+            GameApp.showToast('🔇 Musik Latar Dinonaktifkan');
+        }
+    },
+
+    toggleSFX() {
+        this.sfxEnabled = !this.sfxEnabled;
+        if (this.sfxEnabled) this.click();
+        this.updateButtons();
+        GameApp.showToast(this.sfxEnabled ? '🔊 Efek Suara Aktif' : '🔈 Efek Suara Bisu');
+    },
+
+    startBGM() {
+        this.stopBGM();
+        if (!this.bgmEnabled) return;
+        const notes = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 392.00, 329.63];
+        let idx = 0;
+        this.bgmInterval = setInterval(() => {
+            if (!this.bgmEnabled || !this.ctx || this.ctx.state !== 'running') return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(notes[idx % notes.length], now);
+            gain.gain.setValueAtTime(0.025, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.45);
+            idx++;
+        }, 520);
+    },
+
+    stopBGM() {
+        if (this.bgmInterval) {
+            clearInterval(this.bgmInterval);
+            this.bgmInterval = null;
+        }
+    },
+
+    updateButtons() {
+        const bgmIcon = this.bgmEnabled ? '🎵' : '🔇';
+        const sfxIcon = this.sfxEnabled ? '🔊' : '🔈';
+        ['btn-start-bgm', 'btn-game-bgm'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = bgmIcon;
+        });
+        ['btn-start-sfx', 'btn-game-sfx'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = sfxIcon;
+        });
+    }
+};
+
+/* ==========================================================================
+   BAGIAN D: DATA PETA PULAU 8x5 & LANDMARK
+   ========================================================================== */
+const COLS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const ROWS = [1, 2, 3, 4, 5];
+
+const LANDMARKS = {
+    'A1': { key: 'mercusuar',     name: 'Mercusuar Tua',   terrain: 'sand' },
+    'C1': { key: 'puncakEs',      name: 'Bukit Barisan',    terrain: 'highland' },
+    'F1': { key: 'guaTua',        name: 'Gua Tua',   terrain: 'highland' },
+    'H1': { key: 'kapalKaram',    name: 'Kapal Karam',     terrain: 'sand' },
+    'B2': { key: 'hutanPinus',    name: 'Hutan Pinus',     terrain: 'grass' },
+    'D2': { key: 'menaraPantau',  name: 'Menara Pantau',   terrain: 'grass' },
+    'G2': { key: 'gunungApi',     name: 'Gunung Berapi',   terrain: 'highland' },
+    'A3': { key: 'dermaga',       name: 'Dermaga Kayu',    terrain: 'sand' },
+    'C3': { key: 'danauZamrud',   name: 'Danau Zamrud',    terrain: 'grass' },
+    'E3': { key: 'kemah',         name: 'Kemah Petualang', terrain: 'grass' },
+    'H3': { key: 'airTerjun',     name: 'Air Terjun',      terrain: 'highland' },
+    'B4': { key: 'jembatan',      name: 'Jembatan Kayu',terrain: 'grass' },
+    'D4': { key: 'kelapaKembar',  name: 'Pohon Kelapa',    terrain: 'sand' },
+    'F4': { key: 'candiKuno',     name: 'Candi Kuno',       terrain: 'highland' },
+    'A5': { key: 'pantaiPasir',   name: 'Pantai Pasir',    terrain: 'sand' },
+    'E5': { key: 'batuMenhir',    name: 'Batu Menhir',    terrain: 'highland' },
+    'G5': { key: 'rawaMisterius', name: 'Rawa Misterius',  terrain: 'grass' },
+    'H5': { key: 'bentengTua',    name: 'Benteng Tua',     terrain: 'highland' }
+};
+
+// Vektor 8 Arah Mata Angin pada Grid (dx: perubahan kolom, dy: perubahan baris)
+const COMPASS_VECTORS = {
+    'U':  { dx:  0, dy: -1, name: 'Utara' },
+    'TL': { dx:  1, dy: -1, name: 'Timur Laut' },
+    'T':  { dx:  1, dy:  0, name: 'Timur' },
+    'TG': { dx:  1, dy:  1, name: 'Tenggara' },
+    'S':  { dx:  0, dy:  1, name: 'Selatan' },
+    'BD': { dx: -1, dy:  1, name: 'Barat Daya' },
+    'B':  { dx: -1, dy:  0, name: 'Barat' },
+    'BL': { dx: -1, dy: -1, name: 'Barat Laut' }
+};
+
+function coordToXY(coord) {
+    const colChar = coord.charAt(0).toUpperCase();
+    const rowNum = parseInt(coord.slice(1), 10);
+    return { x: COLS.indexOf(colChar), y: ROWS.indexOf(rowNum) };
+}
+
+function xyToCoord(x, y) {
+    if (x < 0 || x >= COLS.length || y < 0 || y >= ROWS.length) return null;
+    return `${COLS[x]}${ROWS[y]}`;
+}
+
+function formatCoordLabel(coord) {
+    const lm = LANDMARKS[coord];
+    return lm ? `${coord} (${lm.name})` : `Petak ${coord}`;
+}
+
+function shuffleOptions(options) {
+    const shuffled = [...options];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+/* ==========================================================================
+   BAGIAN E: BANK SOAL LENGKAP (30 SOAL RELEVAN BERBAHASA INDONESIA)
+   ==========================================================================
+   - Level 1 (Soal 1 - 10): 4 Arah Mata Angin Utama (Utara, Selatan, Timur, Barat) & Koordinat
+   - Level 2 (Soal 11 - 20): 8 Arah Mata Angin (Termasuk TL, TG, BD, BL) & Arah Relatif
+   - Level 3 (Soal 21 - 30): Navigasi Rute Multi-Langkah & Pemecahan Petunjuk Peta
+*/
+const QUESTION_BANK = [
+    // ================= LEVEL 1: KOMPAS DASAR (10 SOAL) =================
+    {
+        id: 1, level: 1, type: 'Navigasi 4 Arah',
+        startCoord: 'E3', targetCoord: 'E1',
+        question: 'Robot Pramuka memulai petualangan di <strong>Kemah Petualang (E3)</strong>. Peti emas pertama dikubur tepat <strong>2 langkah ke arah Utara (U)</strong> dari Kemah. Di petak manakah harta itu berada?',
+        hint: 'Arah Utara (U) berarti bergerak lurus ke Atas sebanyak 2 kotak dari E3 (E3 → E2 → E1).',
+        explanation: 'Dari E3 (Kemah Petualang), bergerak 2 langkah ke Utara (Atas) melewati E2 dan tiba di petak E1.',
+        options: ['E1', 'E5', 'G3', 'C3']
+    },
+    {
+        id: 2, level: 1, type: 'Navigasi 4 Arah',
+        startCoord: 'A3', targetCoord: 'C3',
+        question: 'Dari <strong>Dermaga Kayu (A3)</strong>, terbanglah lurus sejauh <strong>2 langkah ke arah Timur (T)</strong> menuju perairan jernih di tengah pulau. Di manakah harta karun berada?',
+        hint: 'Arah Timur (T) adalah ke Kanan. Dari kolom A maju 2 kotak ke kanan (A3 → B3 → C3).',
+        explanation: 'Bergerak 2 langkah ke Timur (Kanan) dari Dermaga Kayu (A3) membawa Robot Pramuka tepat ke Danau Zamrud (C3).',
+        options: ['C3', 'A1', 'A5', 'E3']
+    },
+    {
+        id: 3, level: 1, type: 'Navigasi 4 Arah',
+        startCoord: 'D2', targetCoord: 'D4',
+        question: 'Robot Pramuka sedang mengamati pulau dari atas <strong>Menara Pantau (D2)</strong>. Ia melihat kilau peti perak tepat <strong>2 langkah di sebelah Selatan (S)</strong> menara. Gali lokasi tersebut!',
+        hint: 'Arah Selatan (S) berarti bergerak lurus ke Bawah sebanyak 2 kotak dari D2.',
+        explanation: 'Dari Menara Pantau (D2), turun 2 langkah ke Selatan (Bawah) menuju petak Pohon Kelapa (D4).',
+        options: ['D4', 'D1', 'B2', 'F2']
+    },
+    {
+        id: 4, level: 1, type: 'Navigasi 4 Arah',
+        startCoord: 'E3', targetCoord: 'B3',
+        question: 'Dari <strong>Kemah Petualang (E3)</strong>, berjalanlah <strong>3 langkah ke arah Barat (B)</strong> untuk menemukan peti permata kuno. Petak manakah yang harus digali?',
+        hint: 'Arah Barat (B) adalah bergerak ke Kiri. Hitung 3 kotak ke kiri dari E3 (D3 → C3 → B3).',
+        explanation: 'Bergerak 3 langkah ke Barat (Kiri) dari E3 melewati D3 dan C3 hingga tiba di petak B3.',
+        options: ['B3', 'H3', 'E1', 'C3']
+    },
+    {
+        id: 5, level: 1, type: 'Membaca Peta',
+        startCoord: 'A3', targetCoord: 'A1',
+        question: 'Perhatikan sisi paling Barat pulau (Kolom A). Bangunan tinggi apakah yang terletak tepat <strong>2 langkah di sebelah Utara (U)</strong> dari <strong>Dermaga Kayu (A3)</strong>?',
+        hint: 'Lihat petak A3, lalu naik 2 kotak ke arah Utara (Atas).',
+        explanation: 'Dua langkah di sebelah Utara dari Dermaga Kayu (A3) adalah Mercusuar Tua yang berada di koordinat A1.',
+        options: ['A1', 'A5', 'C1', 'B2']
+    },
+    {
+        id: 6, level: 1, type: 'Navigasi 2 Arah',
+        startCoord: 'B2', targetCoord: 'D4',
+        question: 'Robot Pramuka berangkat dari <strong>Hutan Pinus (B2)</strong>. Ia bergerak <strong>2 langkah ke Timur (T)</strong>, lalu <strong>2 langkah ke Selatan (S)</strong>. Di manakah ia harus menggali?',
+        hint: 'Dari B2 ke Timur 2 langkah menjadi D2 (Menara Pantau), lalu turun ke Selatan 2 langkah.',
+        explanation: 'Rute perjalanan: B2 → C2 → D2 (2 langkah Timur), kemudian D2 → D3 → D4 (2 langkah Selatan) tiba di Pohon Kelapa (D4).',
+        options: ['D4', 'B4', 'F2', 'D2']
+    },
+    {
+        id: 7, level: 1, type: 'Navigasi 2 Arah',
+        startCoord: 'F4', targetCoord: 'H1',
+        question: 'Dari <strong>Candi Kuno (F4)</strong>, terbanglah <strong>2 langkah ke Timur (T)</strong>, kemudian lanjutkan <strong>3 langkah ke Utara (U)</strong>. Temukan harta karun di sana!',
+        hint: 'Dari F4 ke Kanan 2 langkah (H4), lalu naik ke Atas 3 langkah (H1).',
+        explanation: 'Dari Candi Kuno (F4), 2 langkah ke Timur menuju H4, lalu 3 langkah ke Utara tiba di Kapal Karam (H1).',
+        options: ['H1', 'F1', 'H3', 'G2']
+    },
+    {
+        id: 8, level: 1, type: 'Koordinat & Kompas',
+        startCoord: 'C3', targetCoord: 'A5',
+        question: 'Mulailah dari <strong>Danau Zamrud (C3)</strong>. Bergeraklah <strong>2 langkah ke Barat (B)</strong> hingga tepi laut, lalu <strong>2 langkah ke Selatan (S)</strong>. Di manakah posisi harta karun?',
+        hint: 'Dari C3 ke Kiri 2 langkah (A3 - Dermaga), lalu ke Bawah 2 langkah (A5).',
+        explanation: 'Dari C3, 2 langkah ke Barat adalah A3 (Dermaga Kayu), lalu 2 langkah ke Selatan adalah A5 (Pantai Pasir).',
+        options: ['A5', 'C5', 'A1', 'B4']
+    },
+    {
+        id: 9, level: 1, type: 'Arah Relatif',
+        startCoord: 'E5', targetCoord: 'H5',
+        question: 'Robot Pramuka berdiri di <strong>Batu Menhir (E5)</strong>. Peta menyebutkan peti emas disimpan di bangunan yang berada <strong>3 langkah di sebelah Timur (T)</strong> dari posisinya sekarang.',
+        hint: 'Bergerak lurus ke Kanan (Timur) sejauh 3 kotak dari E5 di baris ke-5.',
+        explanation: 'Tiga langkah ke arah Timur dari Batu Menhir (E5) adalah Benteng Tua di koordinat H5.',
+        options: ['H5', 'A5', 'G5', 'H3']
+    },
+    {
+        id: 10, level: 1, type: 'Navigasi 2 Arah',
+        startCoord: 'G2', targetCoord: 'C1',
+        question: 'Dari <strong>Gunung Berapi (G2)</strong>, terbanglah <strong>4 langkah ke Barat (B)</strong>, lalu <strong>1 langkah ke Utara (U)</strong> menuju puncak dingin tempat harta disembunyikan!',
+        hint: 'Dari G2 mundur 4 kolom ke Kiri (C2), lalu naik 1 baris ke Atas (C1).',
+        explanation: 'Dari Gunung Berapi (G2), 4 langkah ke Barat membawa kita ke C2, dan 1 langkah ke Utara tiba di Bukit Barisan (C1).',
+        options: ['C1', 'F1', 'B2', 'D2']
+    },
+
+    // ================= LEVEL 2: PENJELAJAH 8 ARAH MATA ANGIN (10 SOAL) =================
+    {
+        id: 11, level: 2, type: '8 Arah Mata Angin',
+        startCoord: 'C3', targetCoord: 'E1',
+        question: 'Dari <strong>Danau Zamrud (C3)</strong>, terbanglah lurus menyilang sejauh <strong>2 langkah ke arah Timur Laut (TL)</strong>. Di koordinat manakah harta karun itu terkubur?',
+        hint: 'Timur Laut (TL) adalah serong Kanan Atas. Dari C3 → D2 → E1.',
+        explanation: 'Bergerak 2 langkah serong ke Timur Laut (Kanan Atas) dari C3 melewati Menara Pantau (D2) dan berhenti di E1.',
+        options: ['E1', 'A1', 'E5', 'G3']
+    },
+    {
+        id: 12, level: 2, type: '8 Arah Mata Angin',
+        startCoord: 'D2', targetCoord: 'F4',
+        question: 'Robot Pramuka berada di <strong>Menara Pantau (D2)</strong>. Petunjuk kompas meminta Robot Pramuka bergerak <strong>2 langkah ke arah Tenggara (TG)</strong>. Lokasi apakah yang dituju?',
+        hint: 'Tenggara (TG) adalah serong Kanan Bawah. Dari D2 → E3 → F4.',
+        explanation: 'Dua langkah ke arah Tenggara (Kanan Bawah) dari Menara Pantau (D2) melewati Kemah (E3) dan tiba di Candi Kuno (F4).',
+        options: ['F4', 'B4', 'F1', 'D4']
+    },
+    {
+        id: 13, level: 2, type: '8 Arah Mata Angin',
+        startCoord: 'C3', targetCoord: 'A5',
+        question: 'Dari <strong>Danau Zamrud (C3)</strong>, ikuti arah kompas sejauh <strong>2 langkah ke Barat Daya (BD)</strong> untuk menemukan peti mutiara di tepi pantai!',
+        hint: 'Barat Daya (BD) adalah serong Kiri Bawah. Dari C3 → B4 → A5.',
+        explanation: 'Dari C3, bergerak serong Kiri Bawah (Barat Daya) melewati Jembatan Kayu (B4) dan tiba di Pantai Pasir (A5).',
+        options: ['A5', 'A1', 'E5', 'B4']
+    },
+    {
+        id: 14, level: 2, type: '8 Arah Mata Angin',
+        startCoord: 'C3', targetCoord: 'A1',
+        question: 'Dari tengah <strong>Danau Zamrud (C3)</strong>, terbanglah <strong>2 langkah ke arah Barat Laut (BL)</strong>. Bangunan apakah yang menyimpan harta karun tersebut?',
+        hint: 'Barat Laut (BL) adalah serong Kiri Atas. Dari C3 → B2 → A1.',
+        explanation: 'Dua langkah ke Barat Laut (Kiri Atas) dari C3 melewati Hutan Pinus (B2) dan sampai di Mercusuar Tua (A1).',
+        options: ['A1', 'C1', 'A3', 'B2']
+    },
+    {
+        id: 15, level: 2, type: 'Arah Relatif 8 Titik',
+        startCoord: 'E3', targetCoord: 'G5',
+        question: 'Saat berdiri di <strong>Kemah Petualang (E3)</strong>, Robot Pramuka melihat peta: <em>"Pergilah 2 langkah ke arah <strong>Tenggara (TG)</strong> menuju daerah berair yang penuh misteri!"</em>',
+        hint: 'Dari E3, bergerak serong Kanan Bawah (Tenggara) sebanyak 2 kali (E3 → F4 → G5).',
+        explanation: 'Dari Kemah Petualang (E3), 2 langkah ke Tenggara melewati Candi Kuno (F4) menuju Rawa Misterius (G5).',
+        options: ['G5', 'E5', 'H3', 'C5']
+    },
+    {
+        id: 16, level: 2, type: 'Kombinasi 8 Arah',
+        startCoord: 'A3', targetCoord: 'C1',
+        question: 'Mulailah dari <strong>Dermaga Kayu (A3)</strong>. Terbanglah <strong>1 langkah ke Timur Laut (TL)</strong> menuju Hutan Pinus, lalu lanjutkan <strong>1 langkah lagi ke Timur Laut (TL)</strong>!',
+        hint: 'Dari A3 serong Kanan Atas ke B2, lalu serong Kanan Atas lagi ke C1.',
+        explanation: 'A3 ditambah 1 langkah Timur Laut menjadi B2 (Hutan Pinus), ditambah 1 langkah Timur Laut lagi menjadi C1 (Bukit Barisan).',
+        options: ['C1', 'B2', 'D2', 'A1']
+    },
+    {
+        id: 17, level: 2, type: 'Kombinasi 8 Arah',
+        startCoord: 'F1', targetCoord: 'H3',
+        question: 'Dari <strong>Gua Tua (F1)</strong>, bergeraklah <strong>1 langkah ke Tenggara (TG)</strong> melewati Gunung Berapi, lalu <strong>1 langkah lagi ke Tenggara (TG)</strong>. Di manakah kamu sekarang?',
+        hint: 'Dari F1 serong Kanan Bawah ke G2, lalu serong Kanan Bawah lagi ke H3.',
+        explanation: 'Dari Gua Tua (F1) → Gunung Berapi (G2) → Air Terjun (H3) melalui 2 langkah ke arah Tenggara.',
+        options: ['H3', 'G2', 'H1', 'F4']
+    },
+    {
+        id: 18, level: 2, type: 'Membaca Peta Kompas',
+        startCoord: 'E5', targetCoord: 'B2',
+        question: 'Dari <strong>Batu Menhir (E5)</strong>, terbanglah lurus <strong>3 langkah ke arah Barat Laut (BL)</strong>. Di tempat manakah peti emas itu disembunyikan?',
+        hint: 'Barat Laut (BL) adalah serong Kiri Atas: E5 → D4 → C3 → B2.',
+        explanation: 'Tiga langkah ke Barat Laut dari E5 melewati Pohon Kelapa (D4) dan Danau Zamrud (C3) hingga tiba di Hutan Pinus (B2).',
+        options: ['B2', 'A1', 'D2', 'C3']
+    },
+    {
+        id: 19, level: 2, type: 'Arah Relatif Peta',
+        startCoord: 'D4', targetCoord: 'F1',
+        question: 'Dari <strong>Pohon Kelapa (D4)</strong>, bergeraklah <strong>2 langkah ke Timur Laut (TL)</strong>, kemudian <strong>1 langkah ke Utara (U)</strong>. Temukan lokasi gua rahasia tempat harta berada!',
+        hint: 'Dari D4 serong Kanan Atas 2 kali (E3 → F2), lalu naik 1 kotak ke Utara (F1).',
+        explanation: 'Dari D4, 2 langkah Timur Laut membawa Finch ke F2, lalu 1 langkah Utara tiba tepat di Gua Tua (F1).',
+        options: ['F1', 'G2', 'E1', 'H1']
+    },
+    {
+        id: 20, level: 2, type: 'Arah Relatif Peta',
+        startCoord: 'H1', targetCoord: 'E3',
+        question: 'Robot Pramuka menemukan botol berisi peta di <strong>Kapal Karam (H1)</strong>. Isi pesannya: <em>"Bergeraklah <strong>2 langkah ke Barat Daya (BD)</strong>, lalu <strong>1 langkah ke Barat (B)</strong>."</em>',
+        hint: 'Dari H1 serong Kiri Bawah 2 kali (G2 → F3), lalu ke Kiri 1 kali (E3).',
+        explanation: 'Dari H1, 2 langkah Barat Daya menuju F3, kemudian 1 langkah ke Barat tiba di Kemah Petualang (E3).',
+        options: ['E3', 'F4', 'D2', 'G2']
+    },
+
+    // ================= LEVEL 3: KAPTEN KOMPAS - RUTE BERANTAI (10 SOAL) =================
+    {
+        id: 21, level: 3, type: 'Rute 3 Tahap',
+        startCoord: 'A1', targetCoord: 'D2',
+        question: 'Ekspedisi dimulai dari <strong>Mercusuar Tua (A1)</strong>: Bergeraklah <strong>1 langkah ke Tenggara (TG)</strong>, lalu <strong>2 langkah ke Timur (T)</strong>. Di manakah peti kompas emas berada?',
+        hint: 'Dari A1 ke Tenggara (B2 - Hutan Pinus), lalu 2 langkah ke Kanan/Timur (C2 → D2).',
+        explanation: 'A1 → 1 langkah Tenggara ke B2 (Hutan Pinus) → 2 langkah Timur ke D2 (Menara Pantau).',
+        options: ['D2', 'C1', 'E3', 'B4']
+    },
+    {
+        id: 22, level: 3, type: 'Rute 3 Tahap',
+        startCoord: 'H5', targetCoord: 'D4',
+        question: 'Dari <strong>Benteng Tua (H5)</strong>, bergeraklah <strong>2 langkah ke Barat Laut (BL)</strong>, lalu <strong>1 langkah ke Selatan (S)</strong>, dan terakhir <strong>2 langkah ke Barat (B)</strong>!',
+        hint: 'Ikuti perlahan: H5 → F3 (2x BL) → F4 (1x S) → D4 (2x B).',
+        explanation: 'Dari H5, 2 langkah Barat Laut ke F3, turun 1 langkah Selatan ke Candi Kuno (F4), lalu 2 langkah Barat ke Pohon Kelapa (D4).',
+        options: ['D4', 'E5', 'B4', 'C3']
+    },
+    {
+        id: 23, level: 3, type: 'Rute 3 Tahap',
+        startCoord: 'A5', targetCoord: 'E3',
+        question: 'Dari <strong>Pantai Pasir (A5)</strong>, terbanglah <strong>2 langkah ke Utara (U)</strong>, kemudian <strong>1 langkah ke Timur Laut (TL)</strong>, lalu <strong>3 langkah ke Tenggara (TG)</strong>, dan <strong>1 langkah ke Utara (U)</strong>!',
+        hint: 'A5 → A3 (2x U) → B2 (1x TL) → E5 (3x TG) → E4? Tunggu, hitung 2 langkah TG: mari cek C3, D4, E5! Dari B2, 2 langkah TG ke D4, lalu 1 langkah TL ke E3! Ayo baca cermat: A5 → 2x Timur Laut (C3) → 2x Timur (E3)!',
+        explanation: 'Mari ikuti rute tepat: Dari A5 bergerak 2 langkah Timur Laut ke C3, lalu 2 langkah ke Timur tiba di Kemah Petualang (E3).',
+        options: ['E3', 'D4', 'F4', 'C3']
+    },
+    {
+        id: 24, level: 3, type: 'Teka-teki Posisi',
+        startCoord: 'E3', targetCoord: 'G2',
+        question: 'Dari <strong>Kemah Petualang (E3)</strong>, harta karun berada di kawah panas yang dapat dicapai dengan <strong>1 langkah ke Utara (U)</strong> lalu <strong>2 langkah ke Timur (T)</strong>. Lokasi manakah itu?',
+        hint: 'Dari E3 naik 1 kotak ke E2, lalu 2 kotak ke kanan (F2 → G2).',
+        explanation: 'Dari E3 naik 1 langkah Utara ke E2, kemudian 2 langkah Timur tiba tepat di Gunung Berapi (G2).',
+        options: ['G2', 'F1', 'H3', 'D2']
+    },
+    {
+        id: 25, level: 3, type: 'Rute Berantai',
+        startCoord: 'C1', targetCoord: 'B4',
+        question: 'Dari <strong>Bukit Barisan (C1)</strong>, terbanglah <strong>1 langkah ke Tenggara (TG)</strong>, lalu <strong>2 langkah ke Barat Daya (BD)</strong>. Di manakah peti harta karun disembunyikan?',
+        hint: 'C1 → 1 langkah Tenggara ke D2 (Menara Pantau) → 2 langkah Barat Daya (C3 → B4).',
+        explanation: 'Dari C1 ke Tenggara menuju D2, kemudian 2 langkah ke Barat Daya melewati Danau Zamrud (C3) dan tiba di Jembatan Kayu (B4).',
+        options: ['B4', 'A5', 'D4', 'C5']
+    },
+    {
+        id: 26, level: 3, type: 'Rute Berantai',
+        startCoord: 'B4', targetCoord: 'F1',
+        question: 'Dari <strong>Jembatan Kayu (B4)</strong>, melangkahlah <strong>3 langkah ke Timur Laut (TL)</strong>, lalu <strong>1 langkah ke Timur (T)</strong>. Temukan peti di dalam gua!',
+        hint: 'Dari B4 serong Kanan Atas 3 kali: B4 → C3 → D2 → E1. Lalu 1 langkah ke Timur (Kanan) ke F1.',
+        explanation: 'Tiga langkah Timur Laut dari B4 membawa kita ke E1, lalu 1 langkah ke Timur tiba di Gua Tua (F1).',
+        options: ['F1', 'E1', 'G2', 'C1']
+    },
+    {
+        id: 27, level: 3, type: 'Persimpangan Kompas',
+        startCoord: 'E3', targetCoord: 'F3',
+        question: 'Peti mahkota raja terkubur di petak yang berada tepat <strong>1 langkah di sebelah Selatan (S) dari F2</strong>, sekaligus <strong>1 langkah di sebelah Timur (T) dari Kemah Petualang (E3)</strong>.',
+        hint: 'Cari petak yang berada tepat di sebelah kanan Kemah Petualang (E3).',
+        explanation: 'Satu langkah di sebelah Timur E3 dan satu langkah di sebelah Selatan F2 bertemu di koordinat F3.',
+        options: ['F3', 'F4', 'G3', 'E2']
+    },
+    {
+        id: 28, level: 3, type: 'Persimpangan Kompas',
+        startCoord: 'D2', targetCoord: 'B3',
+        question: 'Aku adalah sebuah petak rahasia! Aku berada <strong>1 langkah di sebelah Timur (T) dari Dermaga Kayu (A3)</strong> dan <strong>1 langkah di sebelah Barat (B) dari Danau Zamrud (C3)</strong>. Siapakah aku?',
+        hint: 'Petak yang terjepit di antara A3 dan C3 pada baris ke-3.',
+        explanation: 'Di antara A3 (Dermaga Kayu) dan C3 (Danau Zamrud) adalah petak koordinat B3.',
+        options: ['B3', 'B2', 'B4', 'D3']
+    },
+    {
+        id: 29, level: 3, type: 'Rute Kapten',
+        startCoord: 'H3', targetCoord: 'E5',
+        question: 'Dari <strong>Air Terjun (H3)</strong>, bergeraklah <strong>1 langkah ke Barat Laut (BL)</strong> ke Gunung Berapi, lalu <strong>2 langkah ke Barat (B)</strong>, dan <strong>3 langkah ke Selatan (S)</strong>!',
+        hint: 'H3 → G2 (1x BL) → E2 (2x B) → E5 (3x S).',
+        explanation: 'Dari Air Terjun (H3) ke Barat Laut menuju G2, lalu 2 langkah Barat ke E2, dan 3 langkah Selatan tiba di Batu Menhir (E5).',
+        options: ['E5', 'D4', 'F4', 'G5']
+    },
+    {
+        id: 30, level: 3, type: 'Misi Puncak',
+        startCoord: 'A5', targetCoord: 'H1',
+        question: 'Misi Terakhir! Dari <strong>Pantai Pasir (A5)</strong>, terbanglah <strong>4 langkah ke Timur Laut (TL)</strong> hingga mencapai E1, lalu <strong>3 langkah ke Timur (T)</strong> menuju bangkai kapal legendaris!',
+        hint: 'Dari A5 serong Kanan Atas 4 langkah (B4 → C3 → D2 → E1), lalu lurus ke Kanan 3 langkah (F1 → G1 → H1).',
+        explanation: 'Empat langkah Timur Laut dari A5 membawa Finch ke E1, ditambah 3 langkah ke Timur tiba di Kapal Karam (H1).',
+        options: ['H1', 'F1', 'G2', 'H3']
+    }
+];
+
+// Perbaiki teks Soal #23 agar 100% konsisten dengan petunjuk langkahnya:
+QUESTION_BANK[22].question = 'Dari <strong>Pantai Pasir (A5)</strong>, terbanglah <strong>2 langkah ke Timur Laut (TL)</strong> menuju Danau Zamrud, lalu lanjutkan <strong>2 langkah ke Timur (T)</strong>. Di manakah harta karun itu berada?';
+QUESTION_BANK[22].hint = 'Dari A5 serong Kanan Atas 2 langkah (B4 → C3), lalu 2 langkah ke Kanan/Timur (D3 → E3).';
+
+/* ==========================================================================
+   BAGIAN F: MESIN PERMAINAN UTAMA (GAME CONTROLLER)
+   ========================================================================== */
+const GameApp = {
+    selectedLevelMode: 1,       // 1, 2, 3, atau 'all'
+    activeQuestions: [],
+    currentQIndex: 0,
+    currentPos: 'E3',           // Koordinat Robot Pramuka saat ini
+    stepHistory: [],            // Riwayat jejak langkah pada soal aktif
+    score: 0,
+    hearts: 3,
+    maxHearts: 3,
+    correctCount: 0,
+    timerSeconds: 0,
+    timerInterval: null,
+    showMiniCompass: false,
+    questionAnswered: false,
+    sessionResults: [],
+
+    init() {
+        this.fitStageToScreen();
+        window.addEventListener('resize', () => this.fitStageToScreen());
+
+        // Render Hero Cover & Widget Mawar Kompas
+        document.getElementById('hero-illustration-slot').innerHTML = '';
+        document.getElementById('compass-rose-widget').innerHTML = BuiltinSVG.compassRoseSVG(215);
+
+        // Render Peta Pulau 8x5
+        this.renderIslandGrid();
+
+        // Pasang Kontrol Keyboard (Panah / WASD / Enter)
+        window.addEventListener('keydown', (e) => this.handleKeyboard(e));
+    },
+
+    // Menjaga Rasio Fix 16:9 (1920x1080) selalu proporsional di semua ukuran layar
+    fitStageToScreen() {
+        const stage = document.getElementById('game-stage');
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const scale = Math.min(vw / 1920, vh / 1080) * 0.985;
+        stage.style.transform = `scale(${scale})`;
+    },
+
+    selectLevelMode(mode) {
+        AudioSys.click();
+        this.selectedLevelMode = mode;
+        document.querySelectorAll('.level-card').forEach(btn => {
+            btn.classList.toggle('selected', String(btn.dataset.level) === String(mode));
+        });
+    },
+
+    startGame() {
+        AudioSys.click();
+        AudioSys.stopBGM();
+        this.closeAllModals();
+
+        // Filter soal berdasarkan level
+        if (this.selectedLevelMode === 'all') {
+            this.activeQuestions = [...QUESTION_BANK];
+            document.getElementById('hud-level-name').textContent = 'Semua Level (30 Misi)';
+        } else {
+            const lvl = Number(this.selectedLevelMode);
+            this.activeQuestions = QUESTION_BANK.filter(q => q.level === lvl);
+            const names = { 1: 'Level 1: Dasar', 2: 'Level 2: Menengah', 3: 'Level 3: Mahir' };
+            document.getElementById('hud-level-name').textContent = names[lvl] || 'Level 1';
+        }
+
+        this.currentQIndex = 0;
+        this.score = 0;
+        this.hearts = this.maxHearts;
+        this.correctCount = 0;
+        this.timerSeconds = 0;
+        this.sessionResults = [];
+
+        this.switchScreen('game-screen');
+        this.startTimer();
+        this.loadQuestion(0);
+    },
+
+    switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(screenId);
+        if (target) target.classList.add('active');
+    },
+
+    startTimer() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.updateTimerDisplay();
+        this.timerInterval = setInterval(() => {
+            this.timerSeconds++;
+            this.updateTimerDisplay();
+        }, 1000);
+    },
+
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    },
+
+    updateTimerDisplay() {
+        const mins = String(Math.floor(this.timerSeconds / 60)).padStart(2, '0');
+        const secs = String(this.timerSeconds % 60).padStart(2, '0');
+        document.getElementById('hud-timer').textContent = `${mins}:${secs}`;
+    },
+
+    renderIslandGrid() {
+        const gridEl = document.getElementById('island-grid');
+        gridEl.innerHTML = '';
+
+        // Jika pengguna mengisi gambar latar belakang peta di ASSET_CONFIG
+        if (ASSET_CONFIG.mapBackground) {
+            gridEl.style.backgroundImage = `url('${ASSET_CONFIG.mapBackground}')`;
+            gridEl.style.backgroundSize = 'cover';
+            gridEl.style.backgroundPosition = 'center';
+        }
+
+        ROWS.forEach((rowNum, rIdx) => {
+            COLS.forEach((colChar, cIdx) => {
+                const coord = `${colChar}${rowNum}`;
+                const lm = LANDMARKS[coord];
+                const tile = document.createElement('div');
+                const terrainType = lm ? lm.terrain : ((rIdx + cIdx) % 3 === 0 ? 'sand' : 'grass');
+                tile.className = `map-tile terrain-${terrainType}`;
+                tile.id = `tile-${coord}`;
+                tile.dataset.coord = coord;
+
+                tile.innerHTML = `
+                    <span class="tile-coord-tag">${coord}</span>
+                    ${lm ? `<div class="tile-landmark-icon" style="display:none;">${BuiltinSVG.landmarkSVG(lm.key)}</div>` : ''}
+                    ${lm ? `<div class="tile-landmark-name">${lm.name}</div>` : ''}
+                `;
+
+                // Klik pada petak peta: menggerakkan Finch ke petak tersebut dan memilihnya
+                tile.addEventListener('click', () => this.onTileClick(coord));
+                // Klik ganda pada petak: langsung menggali di petak tersebut
+                tile.addEventListener('dblclick', () => {
+                    this.currentPos = coord;
+                    this.updateMapTokens();
+                    this.digAtCurrentPosition();
+                });
+
+                gridEl.appendChild(tile);
+            });
+        });
+    },
+
+    loadQuestion(index) {
+        if (index >= this.activeQuestions.length) {
+            this.finishGameSession();
+            return;
+        }
+
+        this.currentQIndex = index;
+        this.questionAnswered = false;
+        this.hearts = this.maxHearts;
+
+        const q = this.activeQuestions[index];
+        this.currentPos = q.startCoord;
+        this.stepHistory = [q.startCoord];
+
+        // Update HUD & Kartu Soal
+        document.getElementById('hud-question-counter').textContent = `${index + 1} / ${this.activeQuestions.length}`;
+        document.getElementById('hud-score').textContent = this.score;
+        this.updateHeartsDisplay();
+
+        document.getElementById('clue-badge-number').textContent = `MISI #${index + 1} (ID Soal: ${q.id})`;
+        document.getElementById('clue-badge-type').textContent = q.type;
+        document.getElementById('clue-question-body').innerHTML = q.question;
+
+        // Render Tombol Opsi A, B, C, D dengan urutan acak
+        const optContainer = document.getElementById('clue-options-container');
+        optContainer.innerHTML = '';
+        const letters = ['A', 'B', 'C', 'D'];
+        const shuffledOptions = shuffleOptions(q.options);
+        shuffledOptions.forEach((optCoord, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.dataset.coord = optCoord;
+            btn.innerHTML = `
+                <span class="option-letter">${letters[idx]}</span>
+                <span>${formatCoordLabel(optCoord)}</span>
+            `;
+            btn.onclick = () => {
+                AudioSys.step();
+                this.currentPos = optCoord;
+                if (this.stepHistory[this.stepHistory.length - 1] !== optCoord) {
+                    this.stepHistory.push(optCoord);
+                }
+                this.updateMapTokens();
+                this.digAtCurrentPosition();
+            };
+            optContainer.appendChild(btn);
+        });
+
+        // Bersihkan efek hint/benar/salah pada peta
+        document.querySelectorAll('.map-tile').forEach(t => {
+            t.classList.remove('tile-hint-glow', 'tile-correct', 'tile-wrong');
+        });
+
+        this.updateMapTokens();
+    },
+
+    updateHeartsDisplay() {
+        const full = '❤️'.repeat(this.hearts);
+        const empty = '🖤'.repeat(Math.max(0, this.maxHearts - this.hearts));
+        document.getElementById('hud-hearts').textContent = full + empty;
+    },
+
+    updateMapTokens() {
+        const q = this.activeQuestions[this.currentQIndex];
+
+        // Bersihkan token sebelumnya
+        document.querySelectorAll('.finch-token, .mini-compass-overlay').forEach(el => el.remove());
+        document.querySelectorAll('.map-tile').forEach(tile => {
+            const c = tile.dataset.coord;
+            tile.classList.toggle('tile-start', q && c === q.startCoord);
+            tile.classList.toggle('tile-visited', this.stepHistory.includes(c) && c !== this.currentPos);
+            tile.classList.toggle('tile-current', c === this.currentPos);
+        });
+
+        // Pasang Token Robot Pramuka di petak saat ini
+        const activeTile = document.getElementById(`tile-${this.currentPos}`);
+        if (activeTile) {
+            const token = document.createElement('div');
+            token.className = 'finch-token';
+            token.innerHTML = BuiltinSVG.finchCharacter(74);
+            activeTile.appendChild(token);
+
+            if (this.showMiniCompass) {
+                const overlay = document.createElement('div');
+                overlay.className = 'mini-compass-overlay';
+                overlay.innerHTML = BuiltinSVG.compassRoseSVG(170);
+                activeTile.appendChild(overlay);
+            }
+        }
+
+        // Highlight opsi jawaban jika posisi saat ini ada di opsi
+        document.querySelectorAll('.option-btn').forEach(btn => {
+            btn.classList.toggle('selected-opt', btn.dataset.coord === this.currentPos);
+        });
+
+        // Update Baris Status Bawah Peta & Tombol Gali
+        document.getElementById('status-current-pos').textContent = formatCoordLabel(this.currentPos);
+        document.getElementById('status-step-history').textContent = this.stepHistory.join(' → ');
+        document.getElementById('btn-dig-coord').textContent = this.currentPos;
+    },
+
+    onTileClick(coord) {
+        if (this.questionAnswered) return;
+        AudioSys.step();
+        this.currentPos = coord;
+        if (this.stepHistory[this.stepHistory.length - 1] !== coord) {
+            this.stepHistory.push(coord);
+        }
+        this.updateMapTokens();
+        this.showToast(`🤖 Robot Pramuka berpindah ke ${formatCoordLabel(coord)}. Klik "GALI!" untuk memeriksa!`);
+    },
+
+    stepDirection(dirCode) {
+        if (this.questionAnswered) return;
+        const vec = COMPASS_VECTORS[dirCode];
+        if (!vec) return;
+
+        const { x, y } = coordToXY(this.currentPos);
+        const nextCoord = xyToCoord(x + vec.dx, y + vec.dy);
+
+        if (!nextCoord) {
+            AudioSys.wrongDig();
+            this.showToast(`⚠️ Tidak bisa melangkah ke ${vec.name} lagi (Batas Tepian Pulau)!`);
+            return;
+        }
+
+        AudioSys.step();
+        this.currentPos = nextCoord;
+        this.stepHistory.push(nextCoord);
+        this.updateMapTokens();
+    },
+
+    undoStep() {
+        if (this.stepHistory.length <= 1) {
+            this.showToast('ℹ️ Robot Pramuka sudah berada di titik awal misi.');
+            return;
+        }
+        AudioSys.click();
+        this.stepHistory.pop();
+        this.currentPos = this.stepHistory[this.stepHistory.length - 1];
+        this.updateMapTokens();
+    },
+
+    resetCurrentQuestionPosition() {
+        const q = this.activeQuestions[this.currentQIndex];
+        if (!q) return;
+        AudioSys.click();
+        this.currentPos = q.startCoord;
+        this.stepHistory = [q.startCoord];
+        this.updateMapTokens();
+        this.showToast(`🔄 Kembali ke titik awal: ${formatCoordLabel(q.startCoord)}`);
+    },
+
+    useHint() {
+        const q = this.activeQuestions[this.currentQIndex];
+        if (!q) return;
+        AudioSys.hint();
+
+        const targetTile = document.getElementById(`tile-${q.targetCoord}`);
+        if (targetTile) {
+            targetTile.classList.add('tile-hint-glow');
+        }
+        this.showToast(`💡 Petunjuk: ${q.hint}`);
+    },
+
+    toggleMiniCompassOverlay() {
+        AudioSys.click();
+        this.showMiniCompass = !this.showMiniCompass;
+        this.updateMapTokens();
+        this.showToast(this.showMiniCompass ? '🧭 Kompas Karakter Ditampilkan di Peta' : '🧭 Kompas Karakter Disembunyikan');
+    },
+
+    digAtCurrentPosition() {
+        if (this.questionAnswered) return;
+        const q = this.activeQuestions[this.currentQIndex];
+        if (!q) return;
+
+        const currentTile = document.getElementById(`tile-${this.currentPos}`);
+
+        if (this.currentPos === q.targetCoord) {
+            // JAWABAN BENAR!
+            this.questionAnswered = true;
+            AudioSys.treasureFound();
+            if (currentTile) currentTile.classList.add('tile-correct');
+
+            const earnedPoints = this.hearts * 50 + 50; // Maks 200 poin per soal
+            this.score += earnedPoints;
+            this.correctCount++;
+            document.getElementById('hud-score').textContent = this.score;
+
+            this.sessionResults.push({
+                id: q.id,
+                question: q.question,
+                targetCoord: q.targetCoord,
+                explanation: q.explanation,
+                success: true
+            });
+
+            this.showFeedbackModal(true, q, earnedPoints);
+        } else {
+            // JAWABAN BELUM TEPAT
+            AudioSys.wrongDig();
+            if (currentTile) {
+                currentTile.classList.remove('tile-wrong');
+                void currentTile.offsetWidth;
+                currentTile.classList.add('tile-wrong');
+            }
+
+            this.hearts = Math.max(0, this.hearts - 1);
+            this.updateHeartsDisplay();
+
+            if (this.hearts > 0) {
+                this.showToast(`❌ Belum ada harta di ${formatCoordLabel(this.currentPos)}! Sisa kesempatan: ${this.hearts} ❤️`);
+            } else {
+                // Kesempatan habis, tampilkan pembahasan dan lanjut
+                this.questionAnswered = true;
+                const targetTile = document.getElementById(`tile-${q.targetCoord}`);
+                if (targetTile) targetTile.classList.add('tile-correct');
+
+                this.sessionResults.push({
+                    id: q.id,
+                    question: q.question,
+                    targetCoord: q.targetCoord,
+                    explanation: q.explanation,
+                    success: false
+                });
+
+                this.showFeedbackModal(false, q, 0);
+            }
+        }
+    },
+
+    showFeedbackModal(isSuccess, q, earnedPoints) {
+        const header = document.getElementById('feedback-modal-header');
+        const title = document.getElementById('feedback-modal-title');
+        const headline = document.getElementById('feedback-headline');
+        const explanation = document.getElementById('feedback-explanation');
+        const illus = document.getElementById('feedback-illustration');
+        const btnNext = document.getElementById('btn-feedback-next');
+
+        if (isSuccess) {
+            header.style.background = 'linear-gradient(180deg, #2d6a4f 0%, #1b4332 100%)';
+            title.textContent = '🎉 Harta Karun Ditemukan!';
+            headline.textContent = `Hebat! Lokasi Tepat di ${formatCoordLabel(q.targetCoord)} (+${earnedPoints} Poin)`;
+            illus.innerHTML = BuiltinSVG.treasureOpen(180);
+        } else {
+            header.style.background = 'linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%)';
+            title.textContent = '🧭 Kesempatan Habis pada Misi Ini';
+            headline.textContent = `Lokasi Harta Sebenarnya: ${formatCoordLabel(q.targetCoord)}`;
+            illus.innerHTML = BuiltinSVG.compassRoseSVG(175);
+        }
+
+        explanation.innerHTML = `<strong>Pembahasan Rute Kompas:</strong><br>${q.explanation}`;
+        btnNext.textContent = (this.currentQIndex + 1 < this.activeQuestions.length)
+            ? 'Misi Berikutnya ➡️'
+            : 'Lihat Hasil Akhir 🏆';
+
+        this.openModal('modal-feedback');
+    },
+
+    proceedAfterFeedback() {
+        AudioSys.click();
+        this.closeModal('modal-feedback');
+        this.loadQuestion(this.currentQIndex + 1);
+    },
+
+    prevQuestion() {
+        if (this.currentQIndex <= 0) {
+            this.showToast('ℹ️ Ini adalah misi pertama.');
+            return;
+        }
+        AudioSys.click();
+        this.loadQuestion(this.currentQIndex - 1);
+    },
+
+    nextQuestionManual() {
+        AudioSys.click();
+        if (this.currentQIndex + 1 < this.activeQuestions.length) {
+            this.loadQuestion(this.currentQIndex + 1);
+        } else {
+            this.finishGameSession();
+        }
+    },
+
+    finishGameSession() {
+        this.stopTimer();
+        AudioSys.victoryFanfare();
+
+        const totalQ = this.activeQuestions.length;
+        const ratio = totalQ > 0 ? this.correctCount / totalQ : 0;
+
+        document.getElementById('summary-trophy-slot').innerHTML = BuiltinSVG.treasureOpen(165);
+        document.getElementById('sum-score').textContent = this.score;
+        document.getElementById('sum-correct').textContent = `${this.correctCount} / ${totalQ}`;
+        document.getElementById('sum-time').textContent = document.getElementById('hud-timer').textContent;
+
+        let stars = '⭐';
+        let rank = 'Petualang Pemula';
+        if (ratio >= 0.85) {
+            stars = '⭐⭐⭐';
+            rank = 'Kapten Navigator Legendaris!';
+        } else if (ratio >= 0.6) {
+            stars = '⭐⭐';
+            rank = 'Penjelajah Kompas Handal!';
+        }
+        document.getElementById('sum-stars').textContent = stars;
+        document.getElementById('summary-rank-title').textContent = rank;
+
+        // Render Daftar Pembahasan
+        const reviewList = document.getElementById('summary-review-list');
+        reviewList.innerHTML = '';
+        this.activeQuestions.forEach((q, idx) => {
+            const item = document.createElement('div');
+            item.className = 'review-item';
+            item.innerHTML = `
+                <div style="font-weight:800; color:#7c4a1e; margin-bottom:4px;">
+                    Misi #${idx + 1}: Target di ${formatCoordLabel(q.targetCoord)}
+                </div>
+                <div style="font-size:16px; color:#3d210a;">${q.explanation}</div>
+            `;
+            reviewList.appendChild(item);
+        });
+
+        this.openModal('modal-summary');
+    },
+
+    confirmReturnHome() {
+        AudioSys.click();
+        this.returnToMenu();
+    },
+
+    returnToMenu() {
+        this.stopTimer();
+        this.closeAllModals();
+        this.switchScreen('start-screen');
+    },
+
+    openModal(modalId) {
+        AudioSys.click();
+        const el = document.getElementById(modalId);
+        if (el) el.classList.add('active');
+    },
+
+    closeModal(modalId) {
+        AudioSys.click();
+        const el = document.getElementById(modalId);
+        if (el) el.classList.remove('active');
+    },
+
+    closeAllModals() {
+        document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('active'));
+    },
+
+    showToast(msg) {
+        const toast = document.getElementById('game-toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2800);
+    },
+
+    toggleFullscreen() {
+        AudioSys.click();
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen().catch(() => {});
+        }
+    },
+
+    handleKeyboard(e) {
+        const gameActive = document.getElementById('game-screen').classList.contains('active');
+        const anyModalOpen = document.querySelector('.modal-backdrop.active');
+        if (!gameActive || anyModalOpen) return;
+
+        switch (e.key) {
+            case 'ArrowUp':
+            case 'w':
+            case 'W':
+                e.preventDefault();
+                this.stepDirection('U');
+                break;
+            case 'ArrowDown':
+            case 's':
+            case 'S':
+                e.preventDefault();
+                this.stepDirection('S');
+                break;
+            case 'ArrowRight':
+            case 'd':
+            case 'D':
+                e.preventDefault();
+                this.stepDirection('T');
+                break;
+            case 'ArrowLeft':
+            case 'a':
+            case 'A':
+                e.preventDefault();
+                this.stepDirection('B');
+                break;
+            case 'q':
+            case 'Q':
+                this.stepDirection('BL');
+                break;
+            case 'e':
+            case 'E':
+                this.stepDirection('TL');
+                break;
+            case 'z':
+            case 'Z':
+                this.stepDirection('BD');
+                break;
+            case 'c':
+            case 'C':
+                this.stepDirection('TG');
+                break;
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                this.digAtCurrentPosition();
+                break;
+        }
+    }
+};
+
+window.onload = function () {
+    GameApp.init();
+};
+</script>
+</body>
+</html>
